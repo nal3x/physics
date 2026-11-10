@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rolling Wheel Acceleration Simulator</title>
+    <!-- Tailwind CSS for UI styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        canvas {
+            touch-action: none;
+            cursor: pointer;
+        }
+        /* Custom scrollbars for controls panel */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex flex-wrap items-center justify-between gap-4 shadow-md">
+        <div class="flex items-center space-x-3">
+            <div class="p-2 bg-indigo-600/20 text-indigo-400 rounded-lg border border-indigo-500/30">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" stroke-width="2"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v18M3 12h18M5.636 5.636l12.728 12.728M5.636 18.364L18.364 5.636"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-white">Rolling Wheel Acceleration Vector Simulator</h1>
+                <p class="text-xs text-slate-400">Pure rolling motion (no slip): <span class="text-indigo-400 font-mono">v = R·ω</span> &amp; <span class="text-indigo-400 font-mono">a = R·α</span></p>
+            </div>
+        </div>
+        
+        <!-- Controls Header Quick Buttons -->
+        <div class="flex items-center space-x-3">
+            <button id="btnPlayPause" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-medium rounded-lg transition flex items-center space-x-2 shadow-lg shadow-indigo-600/20">
+                <svg id="playIcon" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/>
+                </svg>
+                <svg id="pauseIcon" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5 0a1 1 0 012 0v4a1 1 0 11-2 0V8z" clip-rule="evenodd"/>
+                </svg>
+                <span id="playText">Play</span>
+            </button>
+            <button id="btnReset" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-lg border border-slate-700 transition flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <span>Reset</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-4 p-4 max-w-7xl w-full mx-auto">
+        
+        <!-- Simulation Canvas Area (3 columns on large screens) -->
+        <section class="lg:col-span-3 flex flex-col bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-xl">
+            <!-- Canvas Container -->
+            <div class="relative flex-1 bg-slate-950 min-h-[420px] flex items-center justify-center overflow-hidden">
+                <canvas id="simCanvas" class="w-full h-full block"></canvas>
+                
+                <!-- Interactive Hint Overlay -->
+            <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur border border-slate-800 text-slate-400 text-xs px-3 py-1.5 rounded-md pointer-events-none flex items-center space-x-2">
+                <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
+                </svg>
+                <span id="frameHintText">Click anywhere on wheel to select tracking point</span>
+            </div>
+        </div>
+
+        <!-- Vector Legend Footer -->
+            <div class="bg-slate-900/90 border-t border-slate-800 p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div class="flex items-center space-x-2 bg-slate-950/50 p-2 rounded border border-slate-800">
+                    <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
+                    <div>
+                        <div class="font-semibold text-amber-400">Linear (a_cm)</div>
+                        <div class="text-[10px] text-slate-400">Translation</div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 bg-slate-950/50 p-2 rounded border border-slate-800">
+                    <span class="w-3 h-3 rounded-full bg-cyan-400 inline-block"></span>
+                    <div>
+                        <div class="font-semibold text-cyan-300">Tangential (a_t)</div>
+                        <div class="text-[10px] text-slate-400">R · α (Angular Accel)</div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 bg-slate-950/50 p-2 rounded border border-slate-800">
+                    <span class="w-3 h-3 rounded-full bg-rose-400 inline-block"></span>
+                    <div>
+                        <div class="font-semibold text-rose-300">Centripetal (a_r)</div>
+                        <div class="text-[10px] text-slate-400">R · ω² (Radial Inward)</div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 bg-slate-950/50 p-2 rounded border border-slate-800">
+                    <span class="w-3 h-3 rounded-full bg-emerald-400 inline-block"></span>
+                    <div>
+                        <div class="font-semibold text-emerald-300">Total Net (a_total)</div>
+                        <div class="text-[10px] text-slate-400">Vector Sum</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sidebar Control Panel & Telemetry (1 column) -->
+        <aside class="space-y-4 flex flex-col">
+            
+            <!-- Parameters Panel -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4 shadow-lg">
+                <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+                    </svg>
+                    <span>Simulation Controls</span>
+                </h2>
+
+                <!-- Reference Frame Mode Selector -->
+                <div>
+                    <div class="text-xs text-slate-400 font-medium mb-1.5">Observer Reference Frame</div>
+                    <div class="bg-slate-950 p-1 rounded-lg border border-slate-800 flex space-x-1">
+                        <button id="btnFrameGround" class="flex-1 py-1.5 px-2 text-[11px] font-semibold rounded-md transition text-white bg-indigo-600 shadow">
+                            Ground (Lab) Frame
+                        </button>
+                        <button id="btnFrameCM" class="flex-1 py-1.5 px-2 text-[11px] font-semibold rounded-md transition text-slate-400 hover:text-slate-200">
+                            Co-Moving (CM) Frame
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Radius Slider -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <label for="radiusSlider" class="text-slate-300 font-medium">Wheel Radius (R)</label>
+                        <span id="radiusValue" class="text-indigo-400 font-mono">70 px</span>
+                    </div>
+                    <input id="radiusSlider" type="range" min="30" max="140" value="70" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                    <p class="text-[10px] text-slate-500 mt-1">Increasing R reduces centripetal acceleration (a_r = v²/R)</p>
+                </div>
+
+                <!-- Linear Accel Slider -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <label for="accelSlider" class="text-slate-300 font-medium">Linear Accel (a_cm)</label>
+                        <span id="accelValue" class="text-amber-400 font-mono">20.0 px/s²</span>
+                    </div>
+                    <input id="accelSlider" type="range" min="0" max="80" step="1" value="20" class="w-full accent-amber-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <!-- Velocity Slider -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <label for="velSlider" class="text-slate-300 font-medium">Linear Velocity (v_cm)</label>
+                        <span id="velValue" class="text-indigo-400 font-mono">40.0 px/s</span>
+                    </div>
+                    <input id="velSlider" type="range" min="0" max="250" step="1" value="40" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <!-- Vector Display Scale Slider -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <label for="scaleSlider" class="text-slate-300 font-medium">Vector Display Scale</label>
+                        <span id="scaleValue" class="text-emerald-400 font-mono">0.50x</span>
+                    </div>
+                    <input id="scaleSlider" type="range" min="0.05" max="2.0" step="0.05" value="0.50" class="w-full accent-emerald-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                    <p class="text-[10px] text-slate-500 mt-1">Scales vector arrow visual lengths on screen</p>
+                </div>
+
+                <!-- Rim Angle Selector Slider -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <label for="angleSlider" class="text-slate-300 font-medium">Rim Point Angle (θ)</label>
+                        <span id="angleValue" class="text-purple-400 font-mono">0°</span>
+                    </div>
+                    <input id="angleSlider" type="range" min="0" max="360" step="1" value="0" class="w-full accent-purple-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+
+            <!-- Vector Toggles Panel -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2 shadow-lg">
+                <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-2">Vector Visibility</h2>
+                
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <label class="flex items-center space-x-2 cursor-pointer bg-slate-950/60 p-2 rounded border border-slate-800/80 hover:border-slate-700">
+                        <input id="chkAcm" type="checkbox" checked class="rounded accent-amber-500 bg-slate-800">
+                        <span class="text-amber-400 font-medium">a_cm Vector</span>
+                    </label>
+
+                    <label class="flex items-center space-x-2 cursor-pointer bg-slate-950/60 p-2 rounded border border-slate-800/80 hover:border-slate-700">
+                        <input id="chkAt" type="checkbox" checked class="rounded accent-cyan-500 bg-slate-800">
+                        <span class="text-cyan-300 font-medium">a_t Vector</span>
+                    </label>
+
+                    <label class="flex items-center space-x-2 cursor-pointer bg-slate-950/60 p-2 rounded border border-slate-800/80 hover:border-slate-700">
+                        <input id="chkAr" type="checkbox" checked class="rounded accent-rose-500 bg-slate-800">
+                        <span class="text-rose-300 font-medium">a_r Vector</span>
+                    </label>
+
+                    <label class="flex items-center space-x-2 cursor-pointer bg-slate-950/60 p-2 rounded border border-slate-800/80 hover:border-slate-700">
+                        <input id="chkAtotal" type="checkbox" checked class="rounded accent-emerald-500 bg-slate-800">
+                        <span class="text-emerald-300 font-medium">a_net Vector</span>
+                    </label>
+                </div>
+
+                <label class="flex items-center space-x-2 cursor-pointer bg-slate-950/60 p-2 rounded border border-slate-800/80 hover:border-slate-700 text-xs w-full mt-1">
+                    <input id="chkTrail" type="checkbox" checked class="rounded accent-purple-500 bg-slate-800">
+                    <span class="text-purple-300 font-medium">Show Cycloid Point Trail</span>
+                </label>
+            </div>
+
+            <!-- Real-time Mathematical Telemetry -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3 shadow-lg flex-1">
+                <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider flex items-center justify-between">
+                    <span>Live Dynamics Telemetry</span>
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                </h2>
+
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="bg-slate-950 p-2 rounded border border-slate-800/80">
+                        <div class="text-slate-400 text-[10px]">Angular Vel (ω)</div>
+                        <div id="m_omega" class="text-indigo-300 font-mono text-sm font-semibold">0.57 rad/s</div>
+                    </div>
+                    <div class="bg-slate-950 p-2 rounded border border-slate-800/80">
+                        <div class="text-slate-400 text-[10px]">Angular Accel (α)</div>
+                        <div id="m_alpha" class="text-indigo-300 font-mono text-sm font-semibold">0.29 rad/s²</div>
+                    </div>
+                    <div class="bg-slate-950 p-2 rounded border border-slate-800/80">
+                        <div class="text-slate-400 text-[10px]">Tangential (|a_t|)</div>
+                        <div id="m_at" class="text-cyan-300 font-mono text-sm font-semibold">20.0 px/s²</div>
+                    </div>
+                    <div class="bg-slate-950 p-2 rounded border border-slate-800/80">
+                        <div class="text-slate-400 text-[10px]">Centripetal (|a_r|)</div>
+                        <div id="m_ar" class="text-rose-300 font-mono text-sm font-semibold">22.9 px/s²</div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 flex items-center justify-between">
+                    <div>
+                        <div class="text-slate-400 text-[10px]">Net Vector Magnitude (|a_total|)</div>
+                        <div id="m_atotal" class="text-emerald-400 font-mono text-base font-bold">45.2 px/s²</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-slate-400 text-[10px]">Contact Point Accel</div>
+                        <div class="text-rose-400 font-mono text-xs font-semibold">Upward (R·ω²)</div>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+    </main>
+
+    <!-- Complete Simulation Logic -->
+    <script>
+        // Module Scope Variable Holders
+        let canvas, ctx;
+        let btnPlayPause, btnReset, playIcon, pauseIcon, playText;
+        let btnFrameGround, btnFrameCM, frameHintText;
+        let radiusSlider, radiusValue, accelSlider, accelValue, velSlider, velValue, scaleSlider, scaleValue, angleSlider, angleValue;
+        let chkAcm, chkAt, chkAr, chkAtotal, chkTrail;
+        let m_vcm, m_omega, m_alpha, m_at, m_ar, m_atotal;
+
+        // Kinematic State
+        let isRunning = false;
+        let refFrame = 'ground'; // 'ground' or 'cm'
+        let R = 70;
+        let a_cm = 20;
+        let v_cm = 40;
+        let vectorScale = 0.50;
+        let targetAngleOffset = 0;
+        
+        let x_cm = 0;
+        let y_ground = 0;
+        let theta = 0; // Wheel current rotation angle
+        let trailPoints = [];
+        let lastTimestamp = 0;
+
+        // Initialize DOM refs safely after full document parse
+        function initDOM() {
+            canvas = document.getElementById('simCanvas');
+            ctx = canvas ? canvas.getContext('2d') : null;
+
+            btnPlayPause = document.getElementById('btnPlayPause');
+            btnReset = document.getElementById('btnReset');
+            playIcon = document.getElementById('playIcon');
+            pauseIcon = document.getElementById('pauseIcon');
+            playText = document.getElementById('playText');
+
+            btnFrameGround = document.getElementById('btnFrameGround');
+            btnFrameCM = document.getElementById('btnFrameCM');
+            frameHintText = document.getElementById('frameHintText');
+
+            radiusSlider = document.getElementById('radiusSlider');
+            radiusValue = document.getElementById('radiusValue');
+            accelSlider = document.getElementById('accelSlider');
+            accelValue = document.getElementById('accelValue');
+            velSlider = document.getElementById('velSlider');
+            velValue = document.getElementById('velValue');
+            scaleSlider = document.getElementById('scaleSlider');
+            scaleValue = document.getElementById('scaleValue');
+            angleSlider = document.getElementById('angleSlider');
+            angleValue = document.getElementById('angleValue');
+
+            chkAcm = document.getElementById('chkAcm');
+            chkAt = document.getElementById('chkAt');
+            chkAr = document.getElementById('chkAr');
+            chkAtotal = document.getElementById('chkAtotal');
+            chkTrail = document.getElementById('chkTrail');
+
+            m_vcm = document.getElementById('m_vcm');
+            m_omega = document.getElementById('m_omega');
+            m_alpha = document.getElementById('m_alpha');
+            m_at = document.getElementById('m_at');
+            m_ar = document.getElementById('m_ar');
+            m_atotal = document.getElementById('m_atotal');
+
+            // Reference Frame Mode Toggle Listeners
+            if (btnFrameGround && btnFrameCM) {
+                btnFrameGround.addEventListener('click', () => setFrame('ground'));
+                btnFrameCM.addEventListener('click', () => setFrame('cm'));
+            }
+
+            // Attach Input Listeners
+            if (radiusSlider) {
+                radiusSlider.addEventListener('input', (e) => {
+                    R = parseFloat(e.target.value);
+                    if (radiusValue) radiusValue.textContent = `${R} px`;
+                    trailPoints = [];
+                    draw();
+                });
+            }
+
+            if (accelSlider) {
+                accelSlider.addEventListener('input', (e) => {
+                    a_cm = parseFloat(e.target.value);
+                    if (accelValue) accelValue.textContent = `${a_cm.toFixed(1)} px/s²`;
+                    draw();
+                });
+            }
+
+            if (velSlider) {
+                velSlider.addEventListener('input', (e) => {
+                    v_cm = parseFloat(e.target.value);
+                    if (velValue) velValue.textContent = `${v_cm.toFixed(1)} px/s`;
+                    draw();
+                });
+            }
+
+            if (scaleSlider) {
+                scaleSlider.addEventListener('input', (e) => {
+                    vectorScale = parseFloat(e.target.value);
+                    if (scaleValue) scaleValue.textContent = `${vectorScale.toFixed(2)}x`;
+                    draw();
+                });
+            }
+
+            if (angleSlider) {
+                angleSlider.addEventListener('input', (e) => {
+                    const deg = parseFloat(e.target.value);
+                    targetAngleOffset = (deg * Math.PI) / 180;
+                    if (angleValue) angleValue.textContent = `${deg}°`;
+                    draw();
+                });
+            }
+
+            if (chkAcm) chkAcm.addEventListener('change', draw);
+            if (chkAt) chkAt.addEventListener('change', draw);
+            if (chkAr) chkAr.addEventListener('change', draw);
+            if (chkAtotal) chkAtotal.addEventListener('change', draw);
+            if (chkTrail) chkTrail.addEventListener('change', () => { trailPoints = []; draw(); });
+
+            if (btnPlayPause) btnPlayPause.addEventListener('click', togglePlayPause);
+            if (btnReset) btnReset.addEventListener('click', resetSimulation);
+
+            // Canvas Click to select rim point
+            if (canvas) {
+                canvas.addEventListener('pointerdown', (e) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const mouseX = e.clientX - rect.left;
+                    const mouseY = e.clientY - rect.top;
+
+                    const isCM = (refFrame === 'cm');
+                    const y_center = isCM ? canvas.height / 2 : y_ground - R;
+                    const dx = mouseX - x_cm;
+                    const dy = mouseY - y_center;
+                    
+                    let clickedAngle = Math.atan2(dy, dx);
+                    let relativeAngle = clickedAngle - theta;
+                    
+                    // Normalize to 0..2PI
+                    relativeAngle = (relativeAngle % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+                    let deg = Math.round((relativeAngle * 180) / Math.PI);
+                    
+                    if (angleSlider) angleSlider.value = deg;
+                    targetAngleOffset = (deg * Math.PI) / 180;
+                    if (angleValue) angleValue.textContent = `${deg}°`;
+                    draw();
+                });
+            }
+        }
+
+        function setFrame(frame) {
+            refFrame = frame;
+            trailPoints = [];
+            if (frame === 'ground') {
+                btnFrameGround.className = "flex-1 py-1.5 px-2 text-[11px] font-semibold rounded-md transition text-white bg-indigo-600 shadow";
+                btnFrameCM.className = "flex-1 py-1.5 px-2 text-[11px] font-semibold rounded-md transition text-slate-400 hover:text-slate-200";
+                if (chkAcm && chkAcm.parentElement) chkAcm.parentElement.style.opacity = '1';
+                if (frameHintText) frameHintText.textContent = "Ground Frame: Wheel rolls on floor (a_cm included)";
+            } else {
+                btnFrameCM.className = "flex-1 py-1.5 px-2 text-[11px] font-semibold rounded-md transition text-white bg-indigo-600 shadow";
+                btnFrameGround.className = "flex-1 py-1.5 px-2 text-[11px] font-semibold rounded-md transition text-slate-400 hover:text-slate-200";
+                if (chkAcm && chkAcm.parentElement) chkAcm.parentElement.style.opacity = '0.4';
+                if (frameHintText) frameHintText.textContent = "Co-Moving Frame: Center stationary, floor & a_cm removed";
+            }
+            resizeCanvas();
+            draw();
+        }
+
+        function resizeCanvas() {
+            if (!canvas) return;
+            const container = canvas.parentElement;
+            if (container) {
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
+            } else {
+                canvas.width = 800;
+                canvas.height = 450;
+            }
+            y_ground = canvas.height - 80;
+            
+            if (refFrame === 'cm') {
+                x_cm = canvas.width / 2;
+            } else {
+                if (x_cm === 0 || x_cm > canvas.width + R || x_cm < -R) {
+                    x_cm = Math.max(R + 60, canvas.width * 0.25);
+                }
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            draw();
+        });
+
+        function togglePlayPause() {
+            isRunning = !isRunning;
+            if (isRunning) {
+                if (playIcon) playIcon.classList.add('hidden');
+                if (pauseIcon) pauseIcon.classList.remove('hidden');
+                if (playText) playText.textContent = 'Pause';
+                lastTimestamp = performance.now();
+                requestAnimationFrame(animLoop);
+            } else {
+                if (playIcon) playIcon.classList.remove('hidden');
+                if (pauseIcon) pauseIcon.classList.add('hidden');
+                if (playText) playText.textContent = 'Play';
+            }
+        }
+
+        function resetSimulation() {
+            isRunning = false;
+            if (playIcon) playIcon.classList.remove('hidden');
+            if (pauseIcon) pauseIcon.classList.add('hidden');
+            if (playText) playText.textContent = 'Play';
+            
+            v_cm = 40;
+            if (velSlider) velSlider.value = 40;
+            if (velValue) velValue.textContent = '40.0 px/s';
+            
+            theta = 0;
+            if (refFrame === 'cm') {
+                if (canvas) x_cm = canvas.width / 2;
+            } else {
+                if (canvas) x_cm = Math.max(R + 60, canvas.width * 0.25);
+            }
+            trailPoints = [];
+            draw();
+        }
+
+        function drawVector(ctx, fromX, fromY, vecX, vecY, color, lineWidth = 2) {
+            if (!ctx || (Math.abs(vecX) < 0.1 && Math.abs(vecY) < 0.1)) return;
+            const headLen = 9;
+            const toX = fromX + vecX;
+            const toY = fromY + vecY;
+            const angle = Math.atan2(vecY, vecX);
+
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.lineCap = 'round';
+
+            // Shaft
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.stroke();
+
+            // Head
+            ctx.beginPath();
+            ctx.moveTo(toX, toY);
+            ctx.lineTo(
+                toX - headLen * Math.cos(angle - Math.PI / 6),
+                toY - headLen * Math.sin(angle - Math.PI / 6)
+            );
+            ctx.lineTo(
+                toX - headLen * Math.cos(angle + Math.PI / 6),
+                toY - headLen * Math.sin(angle + Math.PI / 6)
+            );
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function draw() {
+            if (!canvas || !ctx || canvas.width === 0 || canvas.height === 0) return;
+
+            // Clear Background
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const isCM = (refFrame === 'cm');
+            const y_center = isCM ? canvas.height / 2 : y_ground - R;
+            if (isCM) {
+                x_cm = canvas.width / 2;
+            }
+
+            const omega = v_cm / R;
+            const alpha = a_cm / R;
+
+            if (!isCM) {
+                // Ground Surface Line
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(0, y_ground);
+                ctx.lineTo(canvas.width, y_ground);
+                ctx.stroke();
+
+                // Surface Hatching
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 1.5;
+                for (let gx = -10; gx < canvas.width + 20; gx += 20) {
+                    ctx.beginPath();
+                    ctx.moveTo(gx, y_ground);
+                    ctx.lineTo(gx - 12, y_ground + 14);
+                    ctx.stroke();
+                }
+            } else {
+                // Co-Moving Frame Radial & Axis Guidelines
+                ctx.save();
+                ctx.strokeStyle = 'rgba(51, 65, 85, 0.4)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+
+                // Crosshair axes through wheel hub
+                ctx.beginPath();
+                ctx.moveTo(0, y_center); ctx.lineTo(canvas.width, y_center);
+                ctx.moveTo(x_cm, 0); ctx.lineTo(x_cm, canvas.height);
+                ctx.stroke();
+
+                // Orbit Circle Guide
+                ctx.beginPath();
+                ctx.arc(x_cm, y_center, R, 0, 2 * Math.PI);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Target Point Angle
+            const currentPointAngle = theta + targetAngleOffset;
+            const pointX = x_cm + R * Math.cos(currentPointAngle);
+            const pointY = y_center + R * Math.sin(currentPointAngle);
+
+            // Draw Trail (Cycloid in Ground Frame, Circular Orbit in CM Frame)
+            if (chkTrail && chkTrail.checked) {
+                trailPoints.push({ x: pointX, y: pointY });
+                const maxPoints = isCM ? 160 : 350;
+                if (trailPoints.length > maxPoints) trailPoints.shift();
+
+                if (trailPoints.length > 1) {
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(trailPoints[0].x, trailPoints[0].y);
+                    for (let i = 1; i < trailPoints.length; i++) {
+                        ctx.lineTo(trailPoints[i].x, trailPoints[i].y);
+                    }
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+
+            // Draw Outer Rim Wheel Boundary
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(x_cm, y_center, R, 0, 2 * Math.PI);
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+            ctx.fill();
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Wheel Inner Accent Circle
+            ctx.beginPath();
+            ctx.arc(x_cm, y_center, R * 0.3, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Draw Spokes
+            const numSpokes = 6;
+            for (let i = 0; i < numSpokes; i++) {
+                const spokeAngle = theta + (i * 2 * Math.PI) / numSpokes;
+                ctx.beginPath();
+                ctx.moveTo(x_cm, y_center);
+                ctx.lineTo(
+                    x_cm + R * Math.cos(spokeAngle),
+                    y_center + R * Math.sin(spokeAngle)
+                );
+                ctx.strokeStyle = i === 0 ? '#6366f1' : '#334155';
+                ctx.lineWidth = i === 0 ? 2 : 1.5;
+                ctx.stroke();
+            }
+
+            // Center Hub
+            ctx.beginPath();
+            ctx.arc(x_cm, y_center, 6, 0, 2 * Math.PI);
+            ctx.fillStyle = '#f59e0b';
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.restore();
+
+            // Vector Computations
+            // 1. Center of Mass Acceleration (0 in Co-Moving Frame)
+            const effective_acm = isCM ? 0 : a_cm;
+            const vec_acm = { x: effective_acm * vectorScale, y: 0 };
+
+            // 2. Tangential Acceleration: magnitude = R*alpha, direction perpendicular to radius vector
+            const mag_at = R * alpha;
+            const vec_at = {
+                x: -mag_at * Math.sin(currentPointAngle) * vectorScale,
+                y: mag_at * Math.cos(currentPointAngle) * vectorScale
+            };
+
+            // 3. Centripetal Acceleration: magnitude = R*omega^2, direction points inward toward hub center
+            const mag_ar = R * omega * omega;
+            const vec_ar = {
+                x: -mag_ar * Math.cos(currentPointAngle) * vectorScale,
+                y: -mag_ar * Math.sin(currentPointAngle) * vectorScale
+            };
+
+            // 4. Net Total Acceleration Vector Sum
+            const vec_atotal = {
+                x: vec_acm.x + vec_at.x + vec_ar.x,
+                y: vec_acm.y + vec_at.y + vec_ar.y
+            };
+
+            const real_ax = effective_acm - mag_at * Math.sin(currentPointAngle) - mag_ar * Math.cos(currentPointAngle);
+            const real_ay = mag_at * Math.cos(currentPointAngle) - mag_ar * Math.sin(currentPointAngle);
+            const mag_atotal = Math.sqrt(real_ax * real_ax + real_ay * real_ay);
+
+            // Draw Selected Rim Tracking Point
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(pointX, pointY, 7, 0, 2 * Math.PI);
+            ctx.fillStyle = '#a855f7';
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+
+            // Render Enabled Acceleration Vectors at Point
+            if (!isCM && chkAcm && chkAcm.checked) {
+                drawVector(ctx, pointX, pointY, vec_acm.x, vec_acm.y, '#f59e0b', 2.5);
+            }
+            if (chkAt && chkAt.checked) {
+                drawVector(ctx, pointX, pointY, vec_at.x, vec_at.y, '#22d3ee', 2.5);
+            }
+            if (chkAr && chkAr.checked) {
+                drawVector(ctx, pointX, pointY, vec_ar.x, vec_ar.y, '#f43f5e', 2.5);
+            }
+            if (chkAtotal && chkAtotal.checked) {
+                drawVector(ctx, pointX, pointY, vec_atotal.x, vec_atotal.y, '#10b981', 3.5);
+            }
+
+            // Update Numerical Telemetry Display Cards
+            if (m_omega) m_omega.textContent = `${omega.toFixed(2)} rad/s`;
+            if (m_alpha) m_alpha.textContent = `${alpha.toFixed(2)} rad/s²`;
+            if (m_at) m_at.textContent = `${mag_at.toFixed(1)} px/s²`;
+            if (m_ar) m_ar.textContent = `${mag_ar.toFixed(1)} px/s²`;
+            if (m_atotal) m_atotal.textContent = `${mag_atotal.toFixed(1)} px/s²`;
+        }
+
+        function animLoop(timestamp) {
+            if (!isRunning) return;
+
+            const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.05);
+            lastTimestamp = timestamp;
+
+            // Physics Timestep Integration
+            v_cm += a_cm * dt;
+            if (refFrame === 'ground') {
+                x_cm += v_cm * dt;
+            }
+            theta += (v_cm / R) * dt;
+
+            // Synchronize velocity slider with accelerating state
+            if (velSlider) velSlider.value = Math.min(v_cm, 250);
+            if (velValue) velValue.textContent = `${v_cm.toFixed(1)} px/s`;
+
+            // Wrap around canvas screen bounds (Ground Frame only)
+            if (refFrame === 'ground' && canvas && x_cm > canvas.width + R) {
+                x_cm = -R;
+                trailPoints = [];
+            }
+
+            draw();
+            requestAnimationFrame(animLoop);
+        }
+
+        // Initialize application cleanly on load
+        window.addEventListener('load', () => {
+            initDOM();
+            resizeCanvas();
+            draw();
+        });
+    </script>
+</body>
+</html>
