@@ -1,0 +1,1995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple Harmonic Motion Explorer — Hooke's Law Visualizer</title>
+  <!-- Load Tailwind CSS for responsive layout and scientific UI styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Load Inter for crisp UI typography and JetBrains Mono for jitter-free tabular math readouts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    /* Custom styling for sleek range sliders and tabular numeric alignment */
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px;
+      border-radius: 9999px;
+      background: #e2e8f0;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      margin-top: -5px;
+      height: 16px;
+      width: 16px;
+      border-radius: 9999px;
+      background: #0f172a;
+      border: 2px solid #ffffff;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.35);
+      transition: transform 0.12s ease, background-color 0.12s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.12);
+      background: #1e293b;
+    }
+
+    input[type="range"]:focus::-webkit-slider-thumb {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 6px;
+      border-radius: 9999px;
+      background: #e2e8f0;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      height: 16px;
+      width: 16px;
+      border-radius: 9999px;
+      background: #0f172a;
+      border: 2px solid #ffffff;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.35);
+    }
+
+    /* Prevent accidental text selection while scrubbing canvases */
+    canvas {
+      touch-action: pan-y;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
+
+  <!-- Top Scientific Header -->
+  <header class="bg-white border-b border-slate-200/90 sticky top-0 z-30">
+    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-sm shrink-0">
+          <!-- Custom Inline SVG Wave + Spring Icon -->
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12c2.5-6 4.5-6 7 0s4.5 6 7 0 4.5-6 6 0" />
+            <circle cx="12" cy="12" r="2" fill="currentColor" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900">
+              Simple Harmonic Motion Explorer
+            </h1>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+              Hooke's Law: F = &minus;kx &bull; x&Prime; + &omega;&sup2;x = 0
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 hidden sm:block">
+            Simultaneous kinematic analysis of position x(t), velocity u(t), and acceleration a(t) versus time
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Reference Differential Equation Pill -->
+      <div class="flex items-center gap-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-700">
+        <span class="text-slate-400 font-sans font-medium">ODE:</span>
+        <span>d²x/dt² + &omega;²x = 0</span>
+        <span class="text-slate-300">|</span>
+        <span>&omega; = &radic;(k/m)</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-5 space-y-5">
+
+    <!-- 1. Live Equations & Derived Metrics Bar -->
+    <section aria-label="Live Kinematic Equations and Derived Metrics" class="bg-white border border-slate-200/90 rounded-2xl shadow-sm p-4 space-y-3.5">
+      <!-- Live Substituted Equations Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <!-- Position Equation Card -->
+        <div class="rounded-xl border border-blue-200/80 bg-blue-50/50 px-3.5 py-2.5 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-semibold text-blue-900 flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
+              Position x(t)
+            </span>
+            <span class="font-mono text-[11px] text-blue-700/80">A &middot; sin(&omega;t + &phi;₀)</span>
+          </div>
+          <div id="eqPosition" class="font-mono text-xs sm:text-sm font-semibold text-blue-700 tabular-nums truncate">
+            x(t) = 1.50 &middot; sin(2.50t + 0.00) m
+          </div>
+        </div>
+
+        <!-- Velocity Equation Card -->
+        <div class="rounded-xl border border-emerald-200/80 bg-emerald-50/50 px-3.5 py-2.5 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-semibold text-emerald-900 flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block"></span>
+              Velocity u(t) = dx/dt
+            </span>
+            <span class="font-mono text-[11px] text-emerald-700/80">A&omega; &middot; cos(&omega;t + &phi;₀)</span>
+          </div>
+          <div id="eqVelocity" class="font-mono text-xs sm:text-sm font-semibold text-emerald-700 tabular-nums truncate">
+            u(t) = 3.75 &middot; cos(2.50t + 0.00) m/s
+          </div>
+        </div>
+
+        <!-- Acceleration Equation Card -->
+        <div class="rounded-xl border border-red-200/80 bg-red-50/50 px-3.5 py-2.5 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-semibold text-red-900 flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-red-600 inline-block"></span>
+              Acceleration a(t) = du/dt
+            </span>
+            <span class="font-mono text-[11px] text-red-700/80">&minus;A&omega;² &middot; sin(&omega;t + &phi;₀)</span>
+          </div>
+          <div id="eqAcceleration" class="font-mono text-xs sm:text-sm font-semibold text-red-700 tabular-nums truncate">
+            a(t) = &minus;9.38 &middot; sin(2.50t + 0.00) m/s²
+          </div>
+        </div>
+      </div>
+
+      <!-- Derived Metrics Badge Bar -->
+      <div class="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="px-2.5 py-1 rounded-lg bg-slate-100/90 border border-slate-200/80 text-slate-700 font-mono tabular-nums">
+            <span class="text-slate-500 font-sans">Period</span> T = 2&pi;/&omega; = <strong id="metricPeriod" class="text-slate-900">2.51 s</strong>
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-slate-100/90 border border-slate-200/80 text-slate-700 font-mono tabular-nums">
+            <span class="text-slate-500 font-sans">Freq</span> f = &omega;/(2&pi;) = <strong id="metricFreq" class="text-slate-900">0.40 Hz</strong>
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-blue-50/80 border border-blue-200/70 text-blue-800 font-mono tabular-nums">
+            x<sub>max</sub> = <strong id="metricXMax">1.50 m</strong>
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-emerald-50/80 border border-emerald-200/70 text-emerald-800 font-mono tabular-nums">
+            u<sub>max</sub> = <strong id="metricUMax">3.75 m/s</strong>
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-red-50/80 border border-red-200/70 text-red-800 font-mono tabular-nums">
+            a<sub>max</sub> = <strong id="metricAMax">9.38 m/s²</strong>
+          </span>
+        </div>
+
+        <!-- Live Cursor Instantaneous Values -->
+        <div class="flex flex-wrap items-center gap-2 bg-slate-900 text-white px-3 py-1.5 rounded-xl font-mono text-xs tabular-nums shadow-sm">
+          <span class="text-slate-300">t = <strong id="liveT" class="text-white">0.00 s</strong></span>
+          <span class="text-slate-600">|</span>
+          <span class="text-blue-300">x = <strong id="liveX" class="text-white">0.00</strong> m</span>
+          <span class="text-slate-600">|</span>
+          <span class="text-emerald-300">u = <strong id="liveU" class="text-white">3.75</strong> m/s</span>
+          <span class="text-slate-600">|</span>
+          <span class="text-red-300">a = <strong id="liveA" class="text-white">0.00</strong> m/s²</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main 2-Column Workspace: Controls Sidebar + Canvases -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+      <!-- 2. Interactive Controls Panel -->
+      <aside class="lg:col-span-4 xl:col-span-3 bg-white border border-slate-200/90 rounded-2xl shadow-sm p-4 sm:p-5 space-y-5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-800">
+            Oscillator Parameters
+          </h2>
+          <button id="btnResetParams" type="button" class="text-xs font-medium text-slate-500 hover:text-slate-900 px-2 py-1 rounded-lg hover:bg-slate-100 transition cursor-pointer">
+            Defaults
+          </button>
+        </div>
+
+        <!-- Amplitude A Control -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label for="sliderA" class="text-xs font-semibold text-slate-700">
+              Amplitude <span class="font-mono text-slate-900">(A)</span>
+            </label>
+            <div class="flex items-center gap-1">
+              <input
+                id="inputA"
+                type="number"
+                min="0.1"
+                max="5.0"
+                step="0.1"
+                value="1.5"
+                class="w-16 text-right font-mono text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 tabular-nums"
+              />
+              <span class="text-xs font-mono text-slate-500 w-6">m</span>
+            </div>
+          </div>
+          <input id="sliderA" type="range" min="0.1" max="5.0" step="0.1" value="1.5" class="w-full" />
+          <div class="flex justify-between text-[10px] font-mono text-slate-400">
+            <span>0.1 m</span>
+            <span>2.5 m</span>
+            <span>5.0 m</span>
+          </div>
+        </div>
+
+        <!-- Angular Speed ω Control -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label for="sliderOmega" class="text-xs font-semibold text-slate-700">
+              Angular Speed <span class="font-mono text-slate-900">(&omega;)</span>
+            </label>
+            <div class="flex items-center gap-1">
+              <input
+                id="inputOmega"
+                type="number"
+                min="0.5"
+                max="10.0"
+                step="0.1"
+                value="2.5"
+                class="w-16 text-right font-mono text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 tabular-nums"
+              />
+              <span class="text-xs font-mono text-slate-500 w-9">rad/s</span>
+            </div>
+          </div>
+          <input id="sliderOmega" type="range" min="0.5" max="10.0" step="0.1" value="2.5" class="w-full" />
+          <div class="flex justify-between text-[10px] font-mono text-slate-400">
+            <span>0.5</span>
+            <span>5.0</span>
+            <span>10.0 rad/s</span>
+          </div>
+        </div>
+
+        <!-- Initial Phase φ₀ Control + Quick Presets -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label for="sliderPhi" class="text-xs font-semibold text-slate-700">
+              Initial Phase <span class="font-mono text-slate-900">(&phi;₀)</span>
+            </label>
+            <div class="flex items-center gap-1">
+              <input
+                id="inputPhi"
+                type="number"
+                min="-3.14"
+                max="3.14"
+                step="0.01"
+                value="0.00"
+                class="w-16 text-right font-mono text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 tabular-nums"
+              />
+              <span class="text-xs font-mono text-slate-500 w-6">rad</span>
+            </div>
+          </div>
+          <input id="sliderPhi" type="range" min="-3.14" max="3.14" step="0.01" value="0" class="w-full" />
+          <div class="flex justify-between text-[10px] font-mono text-slate-400">
+            <span>&minus;&pi;</span>
+            <span>0</span>
+            <span>+&pi; rad</span>
+          </div>
+
+          <!-- Quick Phase Presets -->
+          <div class="grid grid-cols-5 gap-1 pt-1" role="group" aria-label="Initial phase presets">
+            <button type="button" data-phi="0" class="phi-preset py-1 px-1.5 rounded-lg text-[11px] font-mono font-medium border bg-slate-900 text-white border-slate-900 transition cursor-pointer">
+              0
+            </button>
+            <button type="button" data-phi="0.7854" class="phi-preset py-1 px-1.5 rounded-lg text-[11px] font-mono font-medium border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 transition cursor-pointer">
+              &pi;/4
+            </button>
+            <button type="button" data-phi="1.5708" class="phi-preset py-1 px-1.5 rounded-lg text-[11px] font-mono font-medium border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 transition cursor-pointer">
+              &pi;/2
+            </button>
+            <button type="button" data-phi="3.1416" class="phi-preset py-1 px-1.5 rounded-lg text-[11px] font-mono font-medium border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 transition cursor-pointer">
+              &pi;
+            </button>
+            <button type="button" data-phi="-1.5708" class="phi-preset py-1 px-1.5 rounded-lg text-[11px] font-mono font-medium border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 transition cursor-pointer">
+              &minus;&pi;/2
+            </button>
+          </div>
+        </div>
+
+        <!-- Time Span Slider & Numeric Input -->
+        <div class="space-y-1.5 pt-1 border-t border-slate-100">
+          <div class="flex items-center justify-between">
+            <label for="sliderTimeSpan" class="text-xs font-semibold text-slate-700">
+              Time Span <span class="font-mono text-slate-500">(t<sub>max</sub>)</span>
+            </label>
+            <div class="flex items-center gap-1">
+              <input
+                id="inputTimeSpan"
+                type="number"
+                min="2"
+                max="20"
+                step="0.5"
+                value="8.0"
+                class="w-16 text-right font-mono text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 tabular-nums"
+              />
+              <span class="text-xs font-mono text-slate-500 w-6">s</span>
+            </div>
+          </div>
+          <input id="sliderTimeSpan" type="range" min="2" max="20" step="0.5" value="8" class="w-full" />
+          <div class="flex justify-between text-[10px] font-mono text-slate-400">
+            <span>2 s</span>
+            <span>11 s</span>
+            <span>20 s</span>
+          </div>
+        </div>
+
+        <!-- Configurable Vertical Axis Scaling Section -->
+        <div class="space-y-2.5 pt-2.5 border-t border-slate-100">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-700">
+              Vertical Axis Scale
+            </span>
+            <span id="sidebarScaleBadge" class="font-mono text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded-md tabular-nums">
+              Auto
+            </span>
+          </div>
+
+          <!-- 3-Mode Segmented Selector -->
+          <div class="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200/80" role="group" aria-label="Vertical axis scaling mode">
+            <button type="button" data-yscale-mode="auto" class="yscale-mode-btn py-1.5 px-2 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-xs transition cursor-pointer">
+              Auto
+            </button>
+            <button type="button" data-yscale-mode="manual" class="yscale-mode-btn py-1.5 px-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer">
+              Manual
+            </button>
+            <button type="button" data-yscale-mode="normalized" class="yscale-mode-btn py-1.5 px-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer">
+              Normalized
+            </button>
+          </div>
+
+          <!-- Mode 1: Auto Scaling Options -->
+          <div id="panelScaleAuto" class="rounded-xl bg-slate-50/90 border border-slate-200/80 p-2.5 space-y-1.5">
+            <label class="flex items-center justify-between gap-2 cursor-pointer select-none">
+              <span class="text-xs font-medium text-slate-700">Fit visible curves only</span>
+              <input id="toggleFitVisibleOnly" type="checkbox" checked class="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-blue-500 cursor-pointer" />
+            </label>
+            <p class="text-[11px] text-slate-500 leading-snug">
+              Fits symmetric bounds [&minus;Y<sub>max</sub>, +Y<sub>max</sub>] with ~15% headroom and rounded ticks.
+            </p>
+          </div>
+
+          <!-- Mode 2: Manual Scaling Controls -->
+          <div id="panelScaleManual" class="hidden rounded-xl bg-slate-50/90 border border-slate-200/80 p-2.5 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <label for="sliderManualYMax" class="text-xs font-semibold text-slate-700">
+                Bound <span class="font-mono text-slate-900">(&plusmn;Y<sub>max</sub>)</span>
+              </label>
+              <div class="flex items-center gap-1">
+                <span class="text-xs font-mono text-slate-500">&plusmn;</span>
+                <input
+                  id="inputManualYMax"
+                  type="number"
+                  min="0.5"
+                  max="500"
+                  step="0.5"
+                  value="10.0"
+                  class="w-20 text-right font-mono text-xs font-semibold bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 tabular-nums"
+                />
+              </div>
+            </div>
+            <!-- Logarithmic Slider mapped 0..1000 -> 0.5..500 -->
+            <input id="sliderManualYMax" type="range" min="0" max="1000" step="1" value="434" class="w-full" />
+            <div class="flex justify-between text-[10px] font-mono text-slate-400">
+              <span>0.5</span>
+              <span>15</span>
+              <span>500</span>
+            </div>
+
+            <!-- Quick-Fit Preset Buttons -->
+            <div class="grid grid-cols-3 gap-1 pt-0.5" role="group" aria-label="Manual vertical scale presets">
+              <button type="button" data-yfit="x" class="yfit-preset py-1 px-1.5 rounded-lg text-[11px] font-mono font-medium border border-blue-200 bg-blue-50/70 hover:bg-blue-100/80 text-blue-800 transition cursor-pointer">
+                Fit x (A)
+              </button>
+              <button type="button" data-yfit="u" class="yfit-preset py-1 px-1.5 rounded-lg text-[11px] font-mono font-medium border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 text-emerald-800 transition cursor-pointer">
+                Fit u (A&omega;)
+              </button>
+              <button type="button" data-yfit="a" class="yfit-preset py-1 px-1.5 rounded-lg text-[11px] font-mono font-medium border border-red-200 bg-red-50/70 hover:bg-red-100/80 text-red-800 transition cursor-pointer">
+                Fit a (A&omega;&sup2;)
+              </button>
+              <button type="button" data-yfit="5" class="yfit-preset py-1 px-1.5 rounded-lg text-[11px] font-mono font-medium border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition cursor-pointer">
+                &plusmn;5
+              </button>
+              <button type="button" data-yfit="20" class="yfit-preset py-1 px-1.5 rounded-lg text-[11px] font-mono font-medium border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition cursor-pointer">
+                &plusmn;20
+              </button>
+              <button type="button" data-yfit="100" class="yfit-preset py-1 px-1.5 rounded-lg text-[11px] font-mono font-medium border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition cursor-pointer">
+                &plusmn;100
+              </button>
+            </div>
+          </div>
+
+          <!-- Mode 3: Normalized Scaling Info -->
+          <div id="panelScaleNormalized" class="hidden rounded-xl bg-slate-50/90 border border-slate-200/80 p-2.5 space-y-1">
+            <div class="text-xs font-semibold text-slate-800">Unit Peak Normalization [&minus;1.0, +1.0]</div>
+            <p class="text-[11px] text-slate-500 leading-snug">
+              Scales x/x<sub>max</sub>, u/u<sub>max</sub>, and a/a<sub>max</sub> onto [&minus;1, +1] to compare phase shifts cleanly. Tooltips still show true physical units.
+            </p>
+          </div>
+
+          <p class="text-[10.5px] text-slate-400 leading-tight">
+            Tip: Drag vertically or scroll wheel on the plot&rsquo;s Y-axis to zoom bounds directly.
+          </p>
+        </div>
+
+        <!-- Curve Visibility Toggle Switches -->
+        <div class="space-y-2 pt-2 border-t border-slate-100">
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-600">
+            Visible Curves
+          </div>
+
+          <!-- Toggle x(t) -->
+          <label class="flex items-center justify-between p-2 rounded-xl border border-slate-200/80 hover:bg-slate-50/80 cursor-pointer transition select-none">
+            <span class="flex items-center gap-2.5">
+              <span class="w-3 h-3 rounded-sm bg-blue-600 shadow-xs"></span>
+              <span class="text-xs font-semibold text-slate-800">Position <span class="font-mono text-blue-700">x(t)</span></span>
+              <span class="text-[11px] font-mono text-slate-400">[m]</span>
+            </span>
+            <input id="toggleX" type="checkbox" checked class="sr-only peer" />
+            <span class="w-9 h-5 bg-slate-200 peer-checked:bg-blue-600 rounded-full relative transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:bg-white after:rounded-full after:shadow-xs after:transition-transform peer-checked:after:translate-x-4"></span>
+          </label>
+
+          <!-- Toggle u(t) -->
+          <label class="flex items-center justify-between p-2 rounded-xl border border-slate-200/80 hover:bg-slate-50/80 cursor-pointer transition select-none">
+            <span class="flex items-center gap-2.5">
+              <span class="w-3 h-3 rounded-sm bg-emerald-600 shadow-xs"></span>
+              <span class="text-xs font-semibold text-slate-800">Velocity <span class="font-mono text-emerald-700">u(t)</span></span>
+              <span class="text-[11px] font-mono text-slate-400">[m/s]</span>
+            </span>
+            <input id="toggleU" type="checkbox" checked class="sr-only peer" />
+            <span class="w-9 h-5 bg-slate-200 peer-checked:bg-emerald-600 rounded-full relative transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:bg-white after:rounded-full after:shadow-xs after:transition-transform peer-checked:after:translate-x-4"></span>
+          </label>
+
+          <!-- Toggle a(t) -->
+          <label class="flex items-center justify-between p-2 rounded-xl border border-slate-200/80 hover:bg-slate-50/80 cursor-pointer transition select-none">
+            <span class="flex items-center gap-2.5">
+              <span class="w-3 h-3 rounded-sm bg-red-600 shadow-xs"></span>
+              <span class="text-xs font-semibold text-slate-800">Acceleration <span class="font-mono text-red-700">a(t)</span></span>
+              <span class="text-[11px] font-mono text-slate-400">[m/s²]</span>
+            </span>
+            <input id="toggleA" type="checkbox" checked class="sr-only peer" />
+            <span class="w-9 h-5 bg-slate-200 peer-checked:bg-red-600 rounded-full relative transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:bg-white after:rounded-full after:shadow-xs after:transition-transform peer-checked:after:translate-x-4"></span>
+          </label>
+        </div>
+
+        <!-- Animation & Time Scrubber Controls -->
+        <div class="space-y-3 pt-2 border-t border-slate-100">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-600">
+              Time &amp; Animation
+            </span>
+            <span id="scrubberTimeBadge" class="font-mono text-xs font-semibold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md tabular-nums">
+              t = 0.00 s
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button id="btnPlayPause" type="button" class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition cursor-pointer">
+              <svg id="iconPlay" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <svg id="iconPause" class="w-4 h-4 hidden" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+              </svg>
+              <span id="labelPlayPause">Play</span>
+            </button>
+
+            <button id="btnResetTime" type="button" class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200/80 text-slate-800 border border-slate-200 transition cursor-pointer">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+              <span>Reset t=0</span>
+            </button>
+          </div>
+
+          <!-- Playback Speed Selector -->
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[11px] font-semibold text-slate-600">Speed</span>
+            <div class="grid grid-cols-3 gap-1 p-0.5 rounded-lg bg-slate-100 border border-slate-200/80" role="group" aria-label="Playback speed">
+              <button type="button" data-speed="0.25" class="speed-btn px-2 py-1 rounded-md text-[11px] font-mono font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer">
+                0.25x
+              </button>
+              <button type="button" data-speed="0.5" class="speed-btn px-2 py-1 rounded-md text-[11px] font-mono font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer">
+                0.5x
+              </button>
+              <button type="button" data-speed="1" class="speed-btn px-2 py-1 rounded-md text-[11px] font-mono font-semibold bg-white text-slate-900 shadow-xs transition cursor-pointer">
+                1x
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <input id="sliderCurrentTime" type="range" min="0" max="8" step="0.01" value="0" class="w-full" />
+            <div class="flex justify-between text-[10px] font-mono text-slate-400">
+              <span>0.0 s</span>
+              <span>Scrub time t</span>
+              <span id="scrubberMaxLabel">8.0 s</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right Visualization Column -->
+      <div class="lg:col-span-8 xl:col-span-9 space-y-5">
+
+        <!-- 3. Main Combined High-DPI Canvas Plot -->
+        <section class="bg-white border border-slate-200/90 rounded-2xl shadow-sm p-4 sm:p-5 space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="text-sm sm:text-base font-bold text-slate-900">
+                Combined Kinematics vs. Time: x(t), u(t), and a(t)
+              </h2>
+              <p class="text-xs text-slate-500">
+                Hover or drag in plot to scrub time &bull; Scroll or drag on Y-axis ticks to zoom vertical scale
+              </p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+              <!-- Active Vertical Scale Badge + Quick Reset Auto Button -->
+              <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200/90 rounded-xl px-2.5 py-1">
+                <span id="plotScaleBadge" class="font-mono text-[11px] font-semibold text-slate-700 tabular-nums">
+                  Y-Scale: Auto [&plusmn;12.0]
+                </span>
+                <button
+                  id="btnResetAutoScale"
+                  type="button"
+                  class="hidden ml-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs transition cursor-pointer"
+                >
+                  Reset Auto
+                </button>
+              </div>
+
+              <!-- Inline Color Legend -->
+              <div class="flex flex-wrap items-center gap-3 text-xs font-medium">
+                <span class="flex items-center gap-1.5 text-slate-700">
+                  <span class="w-3 h-0.5 bg-blue-600 inline-block rounded-full"></span>
+                  <span>x(t) [m]</span>
+                </span>
+                <span class="flex items-center gap-1.5 text-slate-700">
+                  <span class="w-3 h-0.5 bg-emerald-600 inline-block rounded-full"></span>
+                  <span>u(t) [m/s]</span>
+                </span>
+                <span class="flex items-center gap-1.5 text-slate-700">
+                  <span class="w-3 h-0.5 bg-red-600 inline-block rounded-full"></span>
+                  <span>a(t) [m/s&sup2;]</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Responsive Plot Container -->
+          <div id="plotContainer" class="relative w-full h-[350px] sm:h-[430px] rounded-xl border border-slate-200/80 bg-slate-50/30 overflow-hidden">
+            <canvas id="plotCanvas" class="block w-full h-full cursor-crosshair"></canvas>
+          </div>
+        </section>
+
+        <!-- 4. Synchronized Mass-Spring Oscillator Canvas -->
+        <section class="bg-white border border-slate-200/90 rounded-2xl shadow-sm p-4 sm:p-5 space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="text-sm sm:text-base font-bold text-slate-900">
+                Synchronized Mass-Spring Oscillator (Hooke's Law: F = &minus;kx)
+              </h2>
+              <p id="physicsInsightText" class="text-xs text-slate-500">
+                At &phi;₀ = 0, t = 0: particle starts at equilibrium origin x = 0 moving right with u = +A&omega;.
+              </p>
+            </div>
+            <div class="flex items-center gap-3 text-xs font-medium">
+              <span class="flex items-center gap-1.5 text-emerald-700">
+                <span class="w-3 h-0.5 bg-emerald-600 inline-block"></span>
+                <span>Velocity u(t)</span>
+              </span>
+              <span class="flex items-center gap-1.5 text-red-700">
+                <span class="w-3 h-0.5 bg-red-600 inline-block"></span>
+                <span>Acceleration a(t)</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Responsive Oscillator Container -->
+          <div id="springContainer" class="relative w-full h-[210px] sm:h-[230px] rounded-xl border border-slate-200/80 bg-slate-50/40 overflow-hidden">
+            <canvas id="springCanvas" class="block w-full h-full"></canvas>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /**
+     * Simple Harmonic Motion (SHM) Interactive Visualizer
+     * Models linear oscillation under Hooke's law: F = -kx => x'' + ω²x = 0
+     * Sine phase convention so that when φ₀ = 0 at t = 0:
+     *   x(0) = 0     (starts at equilibrium origin)
+     *   u(0) = +Aω   (starts moving to the right with positive speed)
+     *   a(0) = 0     (zero restoring acceleration at equilibrium)
+     * Equations:
+     *   x(t) = A * sin(ωt + φ₀)
+     *   u(t) = Aω * cos(ωt + φ₀)
+     *   a(t) = -Aω² * sin(ωt + φ₀)
+     */
+    (function () {
+      'use strict';
+
+      // Default physical parameters and vertical axis configuration
+      const DEFAULTS = {
+        A: 1.5,
+        omega: 2.5,
+        phi0: 0.0,
+        timeSpan: 8.0,
+        yScaleMode: 'auto', // 'auto' | 'manual' | 'normalized'
+        fitVisibleOnly: true,
+        manualYMax: 10.0,
+        playbackSpeed: 1.0,
+      };
+
+      // Application state
+      const state = {
+        A: DEFAULTS.A,
+        omega: DEFAULTS.omega,
+        phi0: DEFAULTS.phi0,
+        timeSpan: DEFAULTS.timeSpan,
+        currentTime: 0.0,
+        isPlaying: false,
+        playbackSpeed: DEFAULTS.playbackSpeed,
+        showX: true,
+        showU: true,
+        showA: true,
+        yScaleMode: DEFAULTS.yScaleMode,
+        fitVisibleOnly: DEFAULTS.fitVisibleOnly,
+        manualYMax: DEFAULTS.manualYMax,
+        hoverTime: null,
+        isScrubbingPlot: false,
+        isDraggingYAxis: false,
+        dragStartY: 0,
+        dragStartYMax: DEFAULTS.manualYMax,
+        lastFrameTimestamp: null,
+        lastPlotMarginLeft: 62,
+      };
+
+      // Color tokens matching Tailwind palette
+      const COLORS = {
+        x: '#2563eb',       // blue-600
+        xFill: 'rgba(37, 99, 235, 0.12)',
+        u: '#059669',       // emerald-600
+        uFill: 'rgba(5, 150, 105, 0.12)',
+        a: '#dc2626',       // red-600
+        aFill: 'rgba(220, 38, 38, 0.12)',
+        grid: '#e2e8f0',    // slate-200
+        axis: '#64748b',    // slate-500
+        text: '#334155',    // slate-700
+        muted: '#94a3b8',   // slate-400
+        cursor: '#0f172a',  // slate-900
+      };
+
+      // Cache DOM references
+      const dom = {
+        // Live Equations & Metrics
+        eqPosition: document.getElementById('eqPosition'),
+        eqVelocity: document.getElementById('eqVelocity'),
+        eqAcceleration: document.getElementById('eqAcceleration'),
+        metricPeriod: document.getElementById('metricPeriod'),
+        metricFreq: document.getElementById('metricFreq'),
+        metricXMax: document.getElementById('metricXMax'),
+        metricUMax: document.getElementById('metricUMax'),
+        metricAMax: document.getElementById('metricAMax'),
+        liveT: document.getElementById('liveT'),
+        liveX: document.getElementById('liveX'),
+        liveU: document.getElementById('liveU'),
+        liveA: document.getElementById('liveA'),
+
+        // Parameter Inputs & Sliders
+        sliderA: document.getElementById('sliderA'),
+        inputA: document.getElementById('inputA'),
+        sliderOmega: document.getElementById('sliderOmega'),
+        inputOmega: document.getElementById('inputOmega'),
+        sliderPhi: document.getElementById('sliderPhi'),
+        inputPhi: document.getElementById('inputPhi'),
+        phiPresets: document.querySelectorAll('.phi-preset'),
+        sliderTimeSpan: document.getElementById('sliderTimeSpan'),
+        inputTimeSpan: document.getElementById('inputTimeSpan'),
+        btnResetParams: document.getElementById('btnResetParams'),
+
+        // Vertical Axis Scale Controls
+        sidebarScaleBadge: document.getElementById('sidebarScaleBadge'),
+        plotScaleBadge: document.getElementById('plotScaleBadge'),
+        btnResetAutoScale: document.getElementById('btnResetAutoScale'),
+        yScaleModeBtns: document.querySelectorAll('.yscale-mode-btn'),
+        panelScaleAuto: document.getElementById('panelScaleAuto'),
+        panelScaleManual: document.getElementById('panelScaleManual'),
+        panelScaleNormalized: document.getElementById('panelScaleNormalized'),
+        toggleFitVisibleOnly: document.getElementById('toggleFitVisibleOnly'),
+        sliderManualYMax: document.getElementById('sliderManualYMax'),
+        inputManualYMax: document.getElementById('inputManualYMax'),
+        yFitPresets: document.querySelectorAll('.yfit-preset'),
+
+        // Curve Visibility Toggles
+        toggleX: document.getElementById('toggleX'),
+        toggleU: document.getElementById('toggleU'),
+        toggleA: document.getElementById('toggleA'),
+
+        // Time & Animation Controls
+        btnPlayPause: document.getElementById('btnPlayPause'),
+        iconPlay: document.getElementById('iconPlay'),
+        iconPause: document.getElementById('iconPause'),
+        labelPlayPause: document.getElementById('labelPlayPause'),
+        btnResetTime: document.getElementById('btnResetTime'),
+        speedBtns: document.querySelectorAll('.speed-btn'),
+        sliderCurrentTime: document.getElementById('sliderCurrentTime'),
+        scrubberTimeBadge: document.getElementById('scrubberTimeBadge'),
+        scrubberMaxLabel: document.getElementById('scrubberMaxLabel'),
+
+        // Canvases & Containers
+        plotContainer: document.getElementById('plotContainer'),
+        plotCanvas: document.getElementById('plotCanvas'),
+        springContainer: document.getElementById('springContainer'),
+        springCanvas: document.getElementById('springCanvas'),
+        physicsInsightText: document.getElementById('physicsInsightText'),
+      };
+
+      const plotCtx = dom.plotCanvas.getContext('2d');
+      const springCtx = dom.springCanvas.getContext('2d');
+
+      /**
+       * Helper: Clamp numeric value within [min, max]
+       */
+      function clamp(val, min, max) {
+        return Math.min(Math.max(val, min), max);
+      }
+
+      /**
+       * Helper: Eliminate "-0.00" display artifacts for near-zero floats
+       */
+      function cleanZero(val) {
+        return Math.abs(val) < 1e-9 ? 0 : val;
+      }
+
+      /**
+       * Logarithmic slider helpers mapping [0..1000] <-> [0.5..500]
+       */
+      function sliderToManualYMax(sliderVal) {
+        const minLog = Math.log(0.5);
+        const maxLog = Math.log(500);
+        const ratio = clamp(Number(sliderVal), 0, 1000) / 1000;
+        const raw = Math.exp(minLog + ratio * (maxLog - minLog));
+        return Number(raw < 10 ? raw.toFixed(2) : raw.toFixed(1));
+      }
+
+      function manualYMaxToSlider(yMax) {
+        const minLog = Math.log(0.5);
+        const maxLog = Math.log(500);
+        const clamped = clamp(Number(yMax), 0.5, 500);
+        return Math.round(((Math.log(clamped) - minLog) / (maxLog - minLog)) * 1000);
+      }
+
+      /**
+       * Evaluates position x(t), velocity u(t), and acceleration a(t) at time t.
+       * At φ₀ = 0 and t = 0: x(0) = 0 (origin) and u(0) = +Aω (positive speed to the right).
+       */
+      function evaluateSHM(t) {
+        const phase = state.omega * t + state.phi0;
+        const sinVal = Math.sin(phase);
+        const cosVal = Math.cos(phase);
+
+        const x = cleanZero(state.A * sinVal);
+        const u = cleanZero(state.A * state.omega * cosVal);
+        const a = cleanZero(-state.A * state.omega * state.omega * sinVal);
+
+        return { x, u, a, phase };
+      }
+
+      /**
+       * Computes human-friendly rounded axis tick step sizes
+       */
+      function computeNiceStep(roughStep) {
+        if (roughStep <= 0 || !isFinite(roughStep)) return 1;
+        const exponent = Math.floor(Math.log10(roughStep));
+        const fraction = roughStep / Math.pow(10, exponent);
+        let niceFraction;
+        if (fraction <= 1) niceFraction = 1;
+        else if (fraction <= 2) niceFraction = 2;
+        else if (fraction <= 2.5) niceFraction = 2.5;
+        else if (fraction <= 5) niceFraction = 5;
+        else niceFraction = 10;
+        return niceFraction * Math.pow(10, exponent);
+      }
+
+      /**
+       * Computes active Y-axis bounds and tick interval according to current yScaleMode
+       */
+      function getVerticalScaleConfig() {
+        const xMax = state.A;
+        const uMax = state.A * state.omega;
+        const aMax = state.A * state.omega * state.omega;
+
+        if (state.yScaleMode === 'normalized') {
+          return {
+            mode: 'normalized',
+            yMax: 1.15,
+            tickLimit: 1.0,
+            tickStep: 0.25,
+            scaleX: xMax > 0 ? 1 / xMax : 1,
+            scaleU: uMax > 0 ? 1 / uMax : 1,
+            scaleA: aMax > 0 ? 1 / aMax : 1,
+          };
+        }
+
+        if (state.yScaleMode === 'manual') {
+          const yMax = clamp(state.manualYMax, 0.5, 500);
+          const tickStep = computeNiceStep(yMax / 4);
+          return {
+            mode: 'manual',
+            yMax,
+            tickLimit: yMax,
+            tickStep,
+            scaleX: 1,
+            scaleU: 1,
+            scaleA: 1,
+          };
+        }
+
+        // Default 'auto' mode
+        let peak = 0;
+        if (state.fitVisibleOnly) {
+          if (state.showX) peak = Math.max(peak, xMax);
+          if (state.showU) peak = Math.max(peak, uMax);
+          if (state.showA) peak = Math.max(peak, aMax);
+          if (peak === 0) peak = Math.max(xMax, uMax, aMax);
+        } else {
+          peak = Math.max(xMax, uMax, aMax);
+        }
+
+        const rawMax = Math.max(peak * 1.15, 0.5);
+        const tickStep = computeNiceStep(rawMax / 4);
+        const yMax = Math.ceil(rawMax / tickStep) * tickStep;
+
+        return {
+          mode: 'auto',
+          yMax,
+          tickLimit: yMax,
+          tickStep,
+          scaleX: 1,
+          scaleU: 1,
+          scaleA: 1,
+        };
+      }
+
+      /**
+       * Formats signed initial phase cleanly for equation display
+       */
+      function formatSignedPhase(phi) {
+        if (Math.abs(phi) < 0.005) return '+ 0.00';
+        return phi >= 0 ? `+ ${phi.toFixed(2)}` : `− ${Math.abs(phi).toFixed(2)}`;
+      }
+
+      /**
+       * Updates equations, derived physical metrics, scale badges, and instantaneous readouts
+       */
+      function updateUIReadouts() {
+        const A = state.A;
+        const w = state.omega;
+        const phi = state.phi0;
+
+        const uMax = A * w;
+        const aMax = A * w * w;
+        const period = (2 * Math.PI) / w;
+        const freq = w / (2 * Math.PI);
+
+        // Live substituted equations (sine convention)
+        const phaseStr = formatSignedPhase(phi);
+        dom.eqPosition.textContent = `x(t) = ${A.toFixed(2)} · sin(${w.toFixed(2)}t ${phaseStr}) m`;
+        dom.eqVelocity.textContent = `u(t) = ${uMax.toFixed(2)} · cos(${w.toFixed(2)}t ${phaseStr}) m/s`;
+        dom.eqAcceleration.textContent = `a(t) = −${aMax.toFixed(2)} · sin(${w.toFixed(2)}t ${phaseStr}) m/s²`;
+
+        // Derived metrics
+        dom.metricPeriod.textContent = `${period.toFixed(2)} s`;
+        dom.metricFreq.textContent = `${freq.toFixed(2)} Hz`;
+        dom.metricXMax.textContent = `${A.toFixed(2)} m`;
+        dom.metricUMax.textContent = `${uMax.toFixed(2)} m/s`;
+        dom.metricAMax.textContent = `${aMax.toFixed(2)} m/s²`;
+
+        // Active vertical scale badges
+        const scaleCfg = getVerticalScaleConfig();
+        if (scaleCfg.mode === 'auto') {
+          const boundLabel = scaleCfg.yMax >= 10 ? scaleCfg.yMax.toFixed(1) : scaleCfg.yMax.toFixed(2);
+          dom.sidebarScaleBadge.textContent = 'Auto';
+          dom.plotScaleBadge.textContent = `Y-Scale: Auto [±${boundLabel}]`;
+          dom.btnResetAutoScale.classList.add('hidden');
+        } else if (scaleCfg.mode === 'manual') {
+          const boundLabel = scaleCfg.yMax >= 10 ? scaleCfg.yMax.toFixed(1) : scaleCfg.yMax.toFixed(2);
+          dom.sidebarScaleBadge.textContent = `±${boundLabel}`;
+          dom.plotScaleBadge.textContent = `Y-Scale: Manual [±${boundLabel}]`;
+          dom.btnResetAutoScale.classList.remove('hidden');
+        } else {
+          dom.sidebarScaleBadge.textContent = 'Normalized';
+          dom.plotScaleBadge.textContent = 'Y-Scale: Normalized [±1.0]';
+          dom.btnResetAutoScale.classList.remove('hidden');
+        }
+
+        // Instantaneous values at currentTime
+        const inst = evaluateSHM(state.currentTime);
+        dom.liveT.textContent = `${state.currentTime.toFixed(2)} s`;
+        dom.liveX.textContent = (inst.x >= 0 ? '+' : '') + inst.x.toFixed(2);
+        dom.liveU.textContent = (inst.u >= 0 ? '+' : '') + inst.u.toFixed(2);
+        dom.liveA.textContent = (inst.a >= 0 ? '+' : '') + inst.a.toFixed(2);
+
+        // Update scrubber badge & slider
+        dom.scrubberTimeBadge.textContent = `t = ${state.currentTime.toFixed(2)} s`;
+        dom.sliderCurrentTime.value = state.currentTime.toFixed(2);
+
+        // Dynamic physics insight caption
+        const xThreshold = 0.04 * A;
+        const uThreshold = 0.04 * uMax;
+        if (Math.abs(inst.x) <= xThreshold) {
+          const dir = inst.u > uThreshold ? 'right (+u_max)' : inst.u < -uThreshold ? 'left (−u_max)' : 'rest';
+          dom.physicsInsightText.textContent =
+            `Equilibrium crossing (x ≈ 0): restoring force F = 0, acceleration a = 0, moving ${dir}.`;
+        } else if (inst.x > 0) {
+          const motionDir = inst.u > uThreshold ? 'moving right (slowing down)' : inst.u < -uThreshold ? 'moving left (speeding up)' : 'at right turning point (+A)';
+          dom.physicsInsightText.textContent =
+            `Stretched right (x > 0): spring pulls left (a < 0), mass is ${motionDir}.`;
+        } else {
+          const motionDir = inst.u < -uThreshold ? 'moving left (slowing down)' : inst.u > uThreshold ? 'moving right (speeding up)' : 'at left turning point (−A)';
+          dom.physicsInsightText.textContent =
+            `Compressed left (x < 0): spring pushes right (a > 0), mass is ${motionDir}.`;
+        }
+      }
+
+      /**
+       * Resizes a canvas cleanly to match its container's CSS size × devicePixelRatio
+       */
+      function resizeCanvasToContainer(canvas, container) {
+        const rect = container.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const targetW = Math.max(1, Math.round(rect.width * dpr));
+        const targetH = Math.max(1, Math.round(rect.height * dpr));
+        if (canvas.width !== targetW || canvas.height !== targetH) {
+          canvas.width = targetW;
+          canvas.height = targetH;
+        }
+        return { width: rect.width, height: rect.height, dpr };
+      }
+
+      /**
+       * Renders the combined x(t), u(t), a(t) vs. t plot on High-DPI canvas
+       */
+      function renderPlotCanvas() {
+        try {
+          const { width, height, dpr } = resizeCanvasToContainer(dom.plotCanvas, dom.plotContainer);
+          const ctx = plotCtx;
+          ctx.save();
+          ctx.scale(dpr, dpr);
+          ctx.clearRect(0, 0, width, height);
+
+          const isCompact = width < 520;
+          const margin = {
+            top: 28,
+            right: isCompact ? 18 : 26,
+            bottom: 38,
+            left: isCompact ? 50 : 62,
+          };
+          state.lastPlotMarginLeft = margin.left;
+
+          const plotW = Math.max(10, width - margin.left - margin.right);
+          const plotH = Math.max(10, height - margin.top - margin.bottom);
+
+          const scaleCfg = getVerticalScaleConfig();
+          const yMax = scaleCfg.yMax;
+          const tMax = state.timeSpan;
+
+          const tToX = (t) => margin.left + (t / tMax) * plotW;
+          const yToPx = (y) => margin.top + plotH * 0.5 - (y / yMax) * (plotH * 0.5);
+          const zeroY = yToPx(0);
+
+          // Subtle Y-axis interactive zone tint on left margin
+          ctx.fillStyle = state.isDraggingYAxis ? 'rgba(99, 102, 241, 0.08)' : 'rgba(241, 245, 249, 0.55)';
+          ctx.fillRect(0, margin.top, margin.left, plotH);
+
+          // Plot frame background
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(margin.left, margin.top, plotW, plotH);
+
+          // Horizontal gridlines and Y-axis tick labels
+          ctx.font = '500 11px "JetBrains Mono", monospace';
+          ctx.textAlign = 'right';
+          ctx.textBaseline = 'middle';
+
+          const stepY = scaleCfg.tickStep;
+          const maxTickIndex = Math.floor(scaleCfg.tickLimit / stepY + 1e-6);
+          for (let i = -maxTickIndex; i <= maxTickIndex; i++) {
+            const val = cleanZero(i * stepY);
+            const py = yToPx(val);
+            if (py < margin.top - 1 || py > margin.top + plotH + 1) continue;
+
+            ctx.beginPath();
+            ctx.moveTo(margin.left, py);
+            ctx.lineTo(margin.left + plotW, py);
+            if (i === 0) {
+              ctx.strokeStyle = COLORS.axis;
+              ctx.lineWidth = 1.4;
+            } else {
+              ctx.strokeStyle = COLORS.grid;
+              ctx.lineWidth = 1;
+            }
+            ctx.stroke();
+
+            // Tick label
+            ctx.fillStyle = i === 0 ? COLORS.cursor : COLORS.text;
+            let label;
+            if (scaleCfg.mode === 'normalized') {
+              label = val === 0 ? '0' : (val > 0 ? `+${val.toFixed(2)}` : val.toFixed(2));
+            } else {
+              const decimals = stepY < 1 ? 2 : stepY < 5 ? 1 : 0;
+              label = val === 0 ? '0' : (val > 0 ? `+${val.toFixed(decimals)}` : val.toFixed(decimals));
+            }
+            ctx.fillText(label, margin.left - 8, py);
+          }
+
+          // Vertical gridlines and X-axis (time) tick labels
+          const roughStepT = tMax / (isCompact ? 5 : 8);
+          const stepT = computeNiceStep(roughStepT);
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+
+          for (let t = 0; t <= tMax + 1e-6; t += stepT) {
+            const px = tToX(t);
+            ctx.beginPath();
+            ctx.moveTo(px, margin.top);
+            ctx.lineTo(px, margin.top + plotH);
+            ctx.strokeStyle = t === 0 ? COLORS.axis : COLORS.grid;
+            ctx.lineWidth = t === 0 ? 1.4 : 1;
+            ctx.stroke();
+
+            ctx.fillStyle = COLORS.text;
+            const tLabel = stepT < 1 ? `${t.toFixed(1)}s` : `${t.toFixed(0)}s`;
+            ctx.fillText(tLabel, px, margin.top + plotH + 8);
+          }
+
+          // Axis titles
+          ctx.save();
+          ctx.fillStyle = COLORS.muted;
+          ctx.font = '600 10.5px "Inter", sans-serif';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'bottom';
+          const yTitle = scaleCfg.mode === 'normalized'
+            ? 'Normalized Amplitude [x/x_max, u/u_max, a/a_max]'
+            : 'Magnitude [m, m/s, m/s²]';
+          ctx.fillText(yTitle, margin.left, margin.top - 8);
+          ctx.restore();
+
+          // Draw Period T = 2π/ω bracket indicator if it fits within tMax
+          const period = (2 * Math.PI) / state.omega;
+          if (period <= tMax) {
+            const x0 = tToX(0);
+            const xT = tToX(period);
+            const bracketY = margin.top + 12;
+
+            ctx.save();
+            ctx.strokeStyle = '#6366f1';
+            ctx.fillStyle = '#4f46e5';
+            ctx.lineWidth = 1.25;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(xT, margin.top);
+            ctx.lineTo(xT, margin.top + plotH);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Horizontal span bar
+            ctx.beginPath();
+            ctx.moveTo(x0 + 2, bracketY);
+            ctx.lineTo(xT - 2, bracketY);
+            ctx.moveTo(x0 + 2, bracketY - 4);
+            ctx.lineTo(x0 + 2, bracketY + 4);
+            ctx.moveTo(xT - 2, bracketY - 4);
+            ctx.lineTo(xT - 2, bracketY + 4);
+            ctx.stroke();
+
+            if (xT - x0 > 54) {
+              ctx.font = '600 10.5px "JetBrains Mono", monospace';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'bottom';
+              ctx.fillText(`T = ${period.toFixed(2)}s`, (x0 + xT) * 0.5, bracketY - 2);
+            }
+            ctx.restore();
+          }
+
+          // Helper to plot a smooth curve clipped cleanly inside the plot region
+          function drawCurve(evalFn, color, lineWidth) {
+            const samples = Math.max(360, Math.round(plotW * 1.5));
+            let clippedTop = false;
+            let clippedBottom = false;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(margin.left, margin.top, plotW, plotH);
+            ctx.clip();
+
+            ctx.beginPath();
+            for (let i = 0; i <= samples; i++) {
+              const t = (i / samples) * tMax;
+              const val = evalFn(t);
+              if (val > yMax) clippedTop = true;
+              if (val < -yMax) clippedBottom = true;
+              const px = tToX(t);
+              const py = yToPx(val);
+              if (i === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            }
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            ctx.restore();
+
+            // Draw subtle boundary markers if curve exceeds ±yMax in Manual mode
+            if (clippedTop || clippedBottom) {
+              ctx.save();
+              ctx.fillStyle = color;
+              if (clippedTop) {
+                ctx.fillRect(margin.left, margin.top, plotW, 2.5);
+              }
+              if (clippedBottom) {
+                ctx.fillRect(margin.left, margin.top + plotH - 2.5, plotW, 2.5);
+              }
+              ctx.restore();
+            }
+          }
+
+          // Plot curves in order: a(t), u(t), then x(t) on top
+          if (state.showA) {
+            drawCurve(
+              (t) => -state.A * state.omega * state.omega * Math.sin(state.omega * t + state.phi0) * scaleCfg.scaleA,
+              COLORS.a,
+              2.3
+            );
+          }
+          if (state.showU) {
+            drawCurve(
+              (t) => state.A * state.omega * Math.cos(state.omega * t + state.phi0) * scaleCfg.scaleU,
+              COLORS.u,
+              2.5
+            );
+          }
+          if (state.showX) {
+            drawCurve(
+              (t) => state.A * Math.sin(state.omega * t + state.phi0) * scaleCfg.scaleX,
+              COLORS.x,
+              2.8
+            );
+          }
+
+          // Draw outer border around plot frame
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(margin.left, margin.top, plotW, plotH);
+
+          // Draw currentTime vertical scrubber cursor & active points
+          const curX = tToX(clamp(state.currentTime, 0, tMax));
+          const inst = evaluateSHM(state.currentTime);
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(curX, margin.top);
+          ctx.lineTo(curX, margin.top + plotH);
+          ctx.strokeStyle = COLORS.cursor;
+          ctx.lineWidth = 1.6;
+          ctx.stroke();
+
+          // Top cursor badge
+          ctx.fillStyle = COLORS.cursor;
+          ctx.beginPath();
+          ctx.arc(curX, margin.top, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          function drawCursorPoint(val, color) {
+            const py = clamp(yToPx(val), margin.top, margin.top + plotH);
+            ctx.beginPath();
+            ctx.arc(curX, py, 5, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+          }
+
+          if (state.showA) drawCursorPoint(inst.a * scaleCfg.scaleA, COLORS.a);
+          if (state.showU) drawCursorPoint(inst.u * scaleCfg.scaleU, COLORS.u);
+          if (state.showX) drawCursorPoint(inst.x * scaleCfg.scaleX, COLORS.x);
+          ctx.restore();
+
+          // Hover inspection crosshair & floating tooltip card
+          if (state.hoverTime !== null && state.hoverTime >= 0 && state.hoverTime <= tMax) {
+            const hx = tToX(state.hoverTime);
+            const hInst = evaluateSHM(state.hoverTime);
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(hx, margin.top);
+            ctx.lineTo(hx, margin.top + plotH);
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)';
+            ctx.setLineDash([4, 4]);
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Tooltip dimensions
+            const boxW = 166;
+            const boxH = 84;
+            let boxX = hx + 12;
+            if (boxX + boxW > margin.left + plotW - 6) {
+              boxX = hx - boxW - 12;
+            }
+            const boxY = margin.top + 10;
+
+            // Card background
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+            ctx.beginPath();
+            ctx.roundRect(boxX, boxY, boxW, boxH, 8);
+            ctx.fill();
+
+            ctx.font = '600 11px "JetBrains Mono", monospace';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillText(`t = ${state.hoverTime.toFixed(2)} s`, boxX + 10, boxY + 8);
+
+            ctx.fillStyle = '#93c5fd';
+            ctx.fillText(`x = ${(hInst.x >= 0 ? '+' : '') + hInst.x.toFixed(2)} m`, boxX + 10, boxY + 26);
+
+            ctx.fillStyle = '#6ee7b7';
+            ctx.fillText(`u = ${(hInst.u >= 0 ? '+' : '') + hInst.u.toFixed(2)} m/s`, boxX + 10, boxY + 44);
+
+            ctx.fillStyle = '#fca5a5';
+            ctx.fillText(`a = ${(hInst.a >= 0 ? '+' : '') + hInst.a.toFixed(2)} m/s²`, boxX + 10, boxY + 62);
+            ctx.restore();
+          }
+
+          ctx.restore();
+        } catch (err) {
+          console.error('Error rendering kinematics plot:', err);
+        }
+      }
+
+      /**
+       * Renders the synchronized Hooke's Law mass-spring oscillator on High-DPI canvas
+       */
+      function renderSpringCanvas() {
+        try {
+          const { width, height, dpr } = resizeCanvasToContainer(dom.springCanvas, dom.springContainer);
+          const ctx = springCtx;
+          ctx.save();
+          ctx.scale(dpr, dpr);
+          ctx.clearRect(0, 0, width, height);
+
+          const inst = evaluateSHM(state.currentTime);
+          const maxAmp = 5.0; // Maximum slider amplitude so travel scales intuitively
+          const trackY = height * 0.56;
+
+          const wallX = Math.max(28, width * 0.06);
+          const eqX = width * 0.54;
+          const maxTravelPx = Math.min(width * 0.34, eqX - wallX - 68);
+          const pxPerMeter = maxTravelPx / maxAmp;
+
+          const massW = Math.min(54, Math.max(40, width * 0.055));
+          const massH = massW;
+          const massCenterX = eqX + inst.x * pxPerMeter;
+          const massLeftX = massCenterX - massW * 0.5;
+          const massRightX = massCenterX + massW * 0.5;
+
+          // Floor / guide rail line
+          const floorY = trackY + massH * 0.5 + 4;
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(wallX - 6, floorY);
+          ctx.lineTo(width - 20, floorY);
+          ctx.stroke();
+
+          // Amplitude envelope markers (-A and +A)
+          const leftAmpX = eqX - state.A * pxPerMeter;
+          const rightAmpX = eqX + state.A * pxPerMeter;
+
+          ctx.save();
+          ctx.fillStyle = 'rgba(37, 99, 235, 0.06)';
+          ctx.fillRect(leftAmpX, trackY - massH * 0.5 - 12, rightAmpX - leftAmpX, massH + 16);
+
+          ctx.setLineDash([4, 4]);
+          ctx.lineWidth = 1.2;
+
+          // -A dashed marker
+          ctx.strokeStyle = '#93c5fd';
+          ctx.beginPath();
+          ctx.moveTo(leftAmpX, trackY - massH * 0.5 - 16);
+          ctx.lineTo(leftAmpX, floorY + 14);
+          ctx.stroke();
+
+          // +A dashed marker
+          ctx.beginPath();
+          ctx.moveTo(rightAmpX, trackY - massH * 0.5 - 16);
+          ctx.lineTo(rightAmpX, floorY + 14);
+          ctx.stroke();
+
+          // Equilibrium x = 0 dashed line
+          ctx.strokeStyle = '#64748b';
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(eqX, trackY - massH * 0.5 - 24);
+          ctx.lineTo(eqX, floorY + 18);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Ruler labels (-A, x=0, +A)
+          ctx.font = '600 11px "JetBrains Mono", monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillStyle = '#3b82f6';
+          ctx.fillText(`−A (−${state.A.toFixed(1)}m)`, leftAmpX, floorY + 16);
+          ctx.fillText(`+A (+${state.A.toFixed(1)}m)`, rightAmpX, floorY + 16);
+
+          ctx.fillStyle = '#0f172a';
+          ctx.fillText('x = 0', eqX, floorY + 16);
+          ctx.restore();
+
+          // Fixed Left Wall with diagonal hatching
+          ctx.save();
+          ctx.fillStyle = '#e2e8f0';
+          ctx.fillRect(wallX - 14, trackY - 46, 14, 92);
+          ctx.strokeStyle = '#475569';
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.moveTo(wallX, trackY - 48);
+          ctx.lineTo(wallX, floorY);
+          ctx.stroke();
+
+          ctx.lineWidth = 1.2;
+          ctx.strokeStyle = '#94a3b8';
+          for (let hy = trackY - 42; hy <= floorY - 4; hy += 10) {
+            ctx.beginPath();
+            ctx.moveTo(wallX - 12, hy + 8);
+            ctx.lineTo(wallX, hy);
+            ctx.stroke();
+          }
+          ctx.restore();
+
+          // Coiled Hooke's Law Spring from wallX to massLeftX
+          const springStart = wallX;
+          const springEnd = Math.max(wallX + 24, massLeftX);
+          const leadLen = 14;
+          const coilStart = springStart + leadLen;
+          const coilEnd = springEnd - leadLen;
+          const coils = 14;
+          const coilAmp = 13;
+
+          ctx.save();
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 2.2;
+          ctx.lineJoin = 'round';
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(springStart, trackY);
+          ctx.lineTo(coilStart, trackY);
+
+          const coilSpan = Math.max(8, coilEnd - coilStart);
+          for (let i = 1; i <= coils; i++) {
+            const frac = (i - 0.5) / coils;
+            const px = coilStart + frac * coilSpan;
+            const py = trackY + (i % 2 === 0 ? coilAmp : -coilAmp);
+            ctx.lineTo(px, py);
+          }
+          ctx.lineTo(coilEnd, trackY);
+          ctx.lineTo(springEnd, trackY);
+          ctx.stroke();
+          ctx.restore();
+
+          // Displacement vector bracket from eqX to massCenterX
+          if (Math.abs(massCenterX - eqX) > 4) {
+            const dispY = trackY - massH * 0.5 - 12;
+            ctx.save();
+            ctx.strokeStyle = COLORS.x;
+            ctx.fillStyle = COLORS.x;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(eqX, dispY);
+            ctx.lineTo(massCenterX, dispY);
+            ctx.stroke();
+
+            const dir = massCenterX > eqX ? 1 : -1;
+            ctx.beginPath();
+            ctx.moveTo(massCenterX, dispY);
+            ctx.lineTo(massCenterX - dir * 6, dispY - 3.5);
+            ctx.lineTo(massCenterX - dir * 6, dispY + 3.5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+          }
+
+          // Oscillating Mass Block
+          ctx.save();
+          const blockTop = trackY - massH * 0.5;
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.roundRect(massLeftX, blockTop, massW, massH, 10);
+          ctx.fill();
+
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '700 13px "Inter", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('m', massCenterX, trackY);
+          ctx.restore();
+
+          // Helper to draw directional physics vector arrows (u and a)
+          function drawVectorArrow(originX, originY, signedVal, maxVal, color, labelText) {
+            if (maxVal <= 0 || Math.abs(signedVal) < 0.02 * maxVal) return;
+            const maxArrowPx = Math.min(110, width * 0.14);
+            const len = (signedVal / maxVal) * maxArrowPx;
+            const endX = originX + len;
+            const dir = len >= 0 ? 1 : -1;
+
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 2.6;
+            ctx.lineCap = 'round';
+
+            ctx.beginPath();
+            ctx.moveTo(originX, originY);
+            ctx.lineTo(endX, originY);
+            ctx.stroke();
+
+            // Arrowhead
+            ctx.beginPath();
+            ctx.moveTo(endX + dir * 2, originY);
+            ctx.lineTo(endX - dir * 7, originY - 4.5);
+            ctx.lineTo(endX - dir * 7, originY + 4.5);
+            ctx.closePath();
+            ctx.fill();
+
+            // Label badge above arrow
+            ctx.font = '600 10.5px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            const textX = clamp((originX + endX) * 0.5, 42, width - 42);
+            ctx.fillText(labelText, textX, originY - 5);
+            ctx.restore();
+          }
+
+          const uMax = state.A * state.omega;
+          const aMax = state.A * state.omega * state.omega;
+
+          // Velocity vector u(t) above mass block
+          drawVectorArrow(
+            massCenterX,
+            blockTop - 26,
+            inst.u,
+            uMax,
+            COLORS.u,
+            `u = ${inst.u >= 0 ? '+' : ''}${inst.u.toFixed(2)}`
+          );
+
+          // Acceleration vector a(t) above velocity vector
+          drawVectorArrow(
+            massCenterX,
+            blockTop - 48,
+            inst.a,
+            aMax,
+            COLORS.a,
+            `a = ${inst.a >= 0 ? '+' : ''}${inst.a.toFixed(2)}`
+          );
+
+          ctx.restore();
+        } catch (err) {
+          console.error('Error rendering spring oscillator:', err);
+        }
+      }
+
+      /**
+       * Master render pass updating DOM readouts and both canvases
+       */
+      function renderAll() {
+        updateUIReadouts();
+        renderPlotCanvas();
+        renderSpringCanvas();
+      }
+
+      /**
+       * Synchronizes a slider + numeric input pair with state
+       */
+      function bindSyncedParameter(sliderEl, inputEl, min, max, decimals, onUpdate) {
+        if (!sliderEl || !inputEl) return;
+
+        sliderEl.addEventListener('input', () => {
+          const val = clamp(parseFloat(sliderEl.value), min, max);
+          inputEl.value = val.toFixed(decimals);
+          onUpdate(val);
+        });
+
+        inputEl.addEventListener('input', () => {
+          const parsed = parseFloat(inputEl.value);
+          if (isNaN(parsed)) return;
+          const val = clamp(parsed, min, max);
+          sliderEl.value = val;
+          onUpdate(val);
+        });
+
+        inputEl.addEventListener('blur', () => {
+          const parsed = parseFloat(inputEl.value);
+          const val = isNaN(parsed) ? parseFloat(sliderEl.value) : clamp(parsed, min, max);
+          sliderEl.value = val;
+          inputEl.value = val.toFixed(decimals);
+          onUpdate(val);
+        });
+      }
+
+      /**
+       * Updates visual highlight for active initial phase preset button
+       */
+      function syncPhasePresetHighlight() {
+        dom.phiPresets.forEach((btn) => {
+          const targetPhi = parseFloat(btn.dataset.phi);
+          const isMatch = Math.abs(state.phi0 - targetPhi) < 0.015;
+          if (isMatch) {
+            btn.className = 'phi-preset py-1 px-1.5 rounded-lg text-[11px] font-mono font-medium border bg-slate-900 text-white border-slate-900 transition cursor-pointer';
+          } else {
+            btn.className = 'phi-preset py-1 px-1.5 rounded-lg text-[11px] font-mono font-medium border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 transition cursor-pointer';
+          }
+        });
+      }
+
+      /**
+       * Switches vertical axis scaling mode ('auto' | 'manual' | 'normalized')
+       */
+      function setVerticalScaleMode(mode) {
+        state.yScaleMode = mode;
+
+        dom.yScaleModeBtns.forEach((btn) => {
+          const isActive = btn.dataset.yscaleMode === mode;
+          if (isActive) {
+            btn.className = 'yscale-mode-btn py-1.5 px-2 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-xs transition cursor-pointer';
+          } else {
+            btn.className = 'yscale-mode-btn py-1.5 px-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+          }
+        });
+
+        dom.panelScaleAuto.classList.toggle('hidden', mode !== 'auto');
+        dom.panelScaleManual.classList.toggle('hidden', mode !== 'manual');
+        dom.panelScaleNormalized.classList.toggle('hidden', mode !== 'normalized');
+
+        renderAll();
+      }
+
+      /**
+       * Sets manual Y-axis symmetric bound ±yMax and syncs slider + input
+       */
+      function setManualYMax(newYMax) {
+        const clamped = clamp(Number(newYMax), 0.5, 500);
+        state.manualYMax = clamped;
+        dom.inputManualYMax.value = clamped < 10 ? clamped.toFixed(2) : clamped.toFixed(1);
+        dom.sliderManualYMax.value = manualYMaxToSlider(clamped);
+        if (state.yScaleMode !== 'manual') {
+          setVerticalScaleMode('manual');
+        } else {
+          renderAll();
+        }
+      }
+
+      /**
+       * Toggles Play / Pause animation state
+       */
+      function setPlaying(shouldPlay) {
+        state.isPlaying = shouldPlay;
+        state.lastFrameTimestamp = null;
+        if (shouldPlay) {
+          dom.iconPlay.classList.add('hidden');
+          dom.iconPause.classList.remove('hidden');
+          dom.labelPlayPause.textContent = 'Pause';
+          dom.btnPlayPause.classList.replace('bg-slate-900', 'bg-blue-600');
+          dom.btnPlayPause.classList.replace('hover:bg-slate-800', 'hover:bg-blue-700');
+        } else {
+          dom.iconPlay.classList.remove('hidden');
+          dom.iconPause.classList.add('hidden');
+          dom.labelPlayPause.textContent = 'Play';
+          dom.btnPlayPause.classList.replace('bg-blue-600', 'bg-slate-900');
+          dom.btnPlayPause.classList.replace('hover:bg-blue-700', 'hover:bg-slate-800');
+        }
+      }
+
+      /**
+       * Converts clientX pointer coordinate on plotCanvas into time t in [0, timeSpan]
+       */
+      function pointerXToTime(clientX) {
+        const rect = dom.plotCanvas.getBoundingClientRect();
+        const isCompact = rect.width < 520;
+        const marginLeft = isCompact ? 50 : 62;
+        const marginRight = isCompact ? 18 : 26;
+        const plotW = Math.max(10, rect.width - marginLeft - marginRight);
+        const relX = clamp(clientX - rect.left - marginLeft, 0, plotW);
+        return (relX / plotW) * state.timeSpan;
+      }
+
+      /**
+       * Checks whether clientX pointer coordinate lies inside the left Y-axis tick region
+       */
+      function isPointerInYAxisRegion(clientX) {
+        const rect = dom.plotCanvas.getBoundingClientRect();
+        return clientX - rect.left <= state.lastPlotMarginLeft;
+      }
+
+      /**
+       * Wires up all interactive UI and canvas listeners
+       */
+      function initializeEventListeners() {
+        // Amplitude A
+        bindSyncedParameter(dom.sliderA, dom.inputA, 0.1, 5.0, 1, (val) => {
+          state.A = val;
+          renderAll();
+        });
+
+        // Angular Speed ω
+        bindSyncedParameter(dom.sliderOmega, dom.inputOmega, 0.5, 10.0, 1, (val) => {
+          state.omega = val;
+          renderAll();
+        });
+
+        // Initial Phase φ₀
+        bindSyncedParameter(dom.sliderPhi, dom.inputPhi, -3.14, 3.14, 2, (val) => {
+          state.phi0 = val;
+          syncPhasePresetHighlight();
+          renderAll();
+        });
+
+        // Quick Initial Phase Presets
+        dom.phiPresets.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const val = clamp(parseFloat(btn.dataset.phi), -3.14, 3.14);
+            state.phi0 = val;
+            dom.sliderPhi.value = val;
+            dom.inputPhi.value = val.toFixed(2);
+            syncPhasePresetHighlight();
+            renderAll();
+          });
+        });
+
+        // Time Span
+        bindSyncedParameter(dom.sliderTimeSpan, dom.inputTimeSpan, 2, 20, 1, (val) => {
+          state.timeSpan = val;
+          dom.sliderCurrentTime.max = val;
+          dom.scrubberMaxLabel.textContent = `${val.toFixed(1)} s`;
+          if (state.currentTime > val) {
+            state.currentTime = val;
+          }
+          renderAll();
+        });
+
+        // Vertical Axis Scale Mode Buttons
+        dom.yScaleModeBtns.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            setVerticalScaleMode(btn.dataset.yscaleMode);
+          });
+        });
+
+        // Auto-fit visible curves checkbox
+        dom.toggleFitVisibleOnly.addEventListener('change', () => {
+          state.fitVisibleOnly = dom.toggleFitVisibleOnly.checked;
+          renderAll();
+        });
+
+        // Manual Y_max Logarithmic Slider & Numeric Input
+        dom.sliderManualYMax.addEventListener('input', () => {
+          const val = sliderToManualYMax(dom.sliderManualYMax.value);
+          state.manualYMax = val;
+          dom.inputManualYMax.value = val < 10 ? val.toFixed(2) : val.toFixed(1);
+          renderAll();
+        });
+
+        dom.inputManualYMax.addEventListener('input', () => {
+          const parsed = parseFloat(dom.inputManualYMax.value);
+          if (isNaN(parsed)) return;
+          const clamped = clamp(parsed, 0.5, 500);
+          state.manualYMax = clamped;
+          dom.sliderManualYMax.value = manualYMaxToSlider(clamped);
+          renderAll();
+        });
+
+        dom.inputManualYMax.addEventListener('blur', () => {
+          const parsed = parseFloat(dom.inputManualYMax.value);
+          const clamped = isNaN(parsed) ? state.manualYMax : clamp(parsed, 0.5, 500);
+          setManualYMax(clamped);
+        });
+
+        // Manual Quick-Fit Preset Buttons
+        dom.yFitPresets.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const fit = btn.dataset.yfit;
+            if (fit === 'x') {
+              setManualYMax(Math.max(0.5, state.A * 1.15));
+            } else if (fit === 'u') {
+              setManualYMax(Math.max(0.5, state.A * state.omega * 1.15));
+            } else if (fit === 'a') {
+              setManualYMax(Math.max(0.5, state.A * state.omega * state.omega * 1.15));
+            } else {
+              setManualYMax(parseFloat(fit));
+            }
+          });
+        });
+
+        // Quick Reset Auto Scale button in Plot Header
+        dom.btnResetAutoScale.addEventListener('click', () => {
+          setVerticalScaleMode('auto');
+        });
+
+        // Curve Visibility Toggles
+        dom.toggleX.addEventListener('change', () => {
+          state.showX = dom.toggleX.checked;
+          renderAll();
+        });
+        dom.toggleU.addEventListener('change', () => {
+          state.showU = dom.toggleU.checked;
+          renderAll();
+        });
+        dom.toggleA.addEventListener('change', () => {
+          state.showA = dom.toggleA.checked;
+          renderAll();
+        });
+
+        // Play / Pause & Reset Time
+        dom.btnPlayPause.addEventListener('click', () => {
+          setPlaying(!state.isPlaying);
+        });
+
+        dom.btnResetTime.addEventListener('click', () => {
+          state.currentTime = 0;
+          renderAll();
+        });
+
+        // Playback Speed Selector
+        dom.speedBtns.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.playbackSpeed = parseFloat(btn.dataset.speed);
+            dom.speedBtns.forEach((b) => {
+              if (b === btn) {
+                b.className = 'speed-btn px-2 py-1 rounded-md text-[11px] font-mono font-semibold bg-white text-slate-900 shadow-xs transition cursor-pointer';
+              } else {
+                b.className = 'speed-btn px-2 py-1 rounded-md text-[11px] font-mono font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+              }
+            });
+          });
+        });
+
+        // Time Scrubber Slider
+        dom.sliderCurrentTime.addEventListener('input', () => {
+          if (state.isPlaying) setPlaying(false);
+          state.currentTime = clamp(parseFloat(dom.sliderCurrentTime.value), 0, state.timeSpan);
+          renderAll();
+        });
+
+        // Reset All Parameters to Defaults
+        dom.btnResetParams.addEventListener('click', () => {
+          state.A = DEFAULTS.A;
+          state.omega = DEFAULTS.omega;
+          state.phi0 = DEFAULTS.phi0;
+          state.timeSpan = DEFAULTS.timeSpan;
+          state.fitVisibleOnly = DEFAULTS.fitVisibleOnly;
+          state.manualYMax = DEFAULTS.manualYMax;
+
+          dom.sliderA.value = DEFAULTS.A;
+          dom.inputA.value = DEFAULTS.A.toFixed(1);
+          dom.sliderOmega.value = DEFAULTS.omega;
+          dom.inputOmega.value = DEFAULTS.omega.toFixed(1);
+          dom.sliderPhi.value = DEFAULTS.phi0;
+          dom.inputPhi.value = DEFAULTS.phi0.toFixed(2);
+          dom.sliderTimeSpan.value = DEFAULTS.timeSpan;
+          dom.inputTimeSpan.value = DEFAULTS.timeSpan.toFixed(1);
+          dom.sliderCurrentTime.max = DEFAULTS.timeSpan;
+          dom.scrubberMaxLabel.textContent = `${DEFAULTS.timeSpan.toFixed(1)} s`;
+          dom.toggleFitVisibleOnly.checked = DEFAULTS.fitVisibleOnly;
+          dom.inputManualYMax.value = DEFAULTS.manualYMax.toFixed(1);
+          dom.sliderManualYMax.value = manualYMaxToSlider(DEFAULTS.manualYMax);
+
+          syncPhasePresetHighlight();
+          setVerticalScaleMode('auto');
+        });
+
+        // Plot Canvas Mouse & Wheel Interactions (Hover tooltip, click-to-scrub, Y-axis zoom)
+        dom.plotCanvas.addEventListener('mousemove', (e) => {
+          if (state.isDraggingYAxis) {
+            const deltaY = e.clientY - state.dragStartY;
+            const factor = Math.exp(deltaY * 0.012);
+            setManualYMax(state.dragStartYMax * factor);
+            return;
+          }
+
+          if (isPointerInYAxisRegion(e.clientX)) {
+            dom.plotCanvas.style.cursor = 'ns-resize';
+            state.hoverTime = null;
+          } else {
+            dom.plotCanvas.style.cursor = 'crosshair';
+            const t = pointerXToTime(e.clientX);
+            state.hoverTime = t;
+            if (state.isScrubbingPlot) {
+              state.currentTime = t;
+            }
+          }
+          renderAll();
+        });
+
+        dom.plotCanvas.addEventListener('mousedown', (e) => {
+          if (isPointerInYAxisRegion(e.clientX)) {
+            state.isDraggingYAxis = true;
+            state.dragStartY = e.clientY;
+            state.dragStartYMax = getVerticalScaleConfig().yMax;
+            if (state.yScaleMode !== 'manual') {
+              setManualYMax(state.dragStartYMax);
+            }
+          } else {
+            if (state.isPlaying) setPlaying(false);
+            state.isScrubbingPlot = true;
+            state.currentTime = pointerXToTime(e.clientX);
+            renderAll();
+          }
+        });
+
+        window.addEventListener('mouseup', () => {
+          state.isScrubbingPlot = false;
+          state.isDraggingYAxis = false;
+        });
+
+        dom.plotCanvas.addEventListener('mouseleave', () => {
+          state.hoverTime = null;
+          if (!state.isDraggingYAxis) {
+            renderPlotCanvas();
+          }
+        });
+
+        // Mouse wheel over Y-axis zooms vertical scale smoothly
+        dom.plotCanvas.addEventListener(
+          'wheel',
+          (e) => {
+            if (isPointerInYAxisRegion(e.clientX)) {
+              e.preventDefault();
+              const currentMax = getVerticalScaleConfig().yMax;
+              const zoomFactor = e.deltaY > 0 ? 1.12 : 0.89;
+              setManualYMax(currentMax * zoomFactor);
+            }
+          },
+          { passive: false }
+        );
+
+        // Touch interactions for mobile/tablet scrubbing & Y-axis zoom
+        dom.plotCanvas.addEventListener(
+          'touchstart',
+          (e) => {
+            if (e.touches.length === 0) return;
+            const touch = e.touches[0];
+            if (isPointerInYAxisRegion(touch.clientX)) {
+              state.isDraggingYAxis = true;
+              state.dragStartY = touch.clientY;
+              state.dragStartYMax = getVerticalScaleConfig().yMax;
+              if (state.yScaleMode !== 'manual') {
+                setManualYMax(state.dragStartYMax);
+              }
+            } else {
+              if (state.isPlaying) setPlaying(false);
+              state.isScrubbingPlot = true;
+              const t = pointerXToTime(touch.clientX);
+              state.currentTime = t;
+              state.hoverTime = t;
+              renderAll();
+            }
+          },
+          { passive: true }
+        );
+
+        dom.plotCanvas.addEventListener(
+          'touchmove',
+          (e) => {
+            if (e.touches.length === 0) return;
+            const touch = e.touches[0];
+            if (state.isDraggingYAxis) {
+              e.preventDefault();
+              const deltaY = touch.clientY - state.dragStartY;
+              const factor = Math.exp(deltaY * 0.012);
+              setManualYMax(state.dragStartYMax * factor);
+            } else if (state.isScrubbingPlot) {
+              const t = pointerXToTime(touch.clientX);
+              state.currentTime = t;
+              state.hoverTime = t;
+              renderAll();
+            }
+          },
+          { passive: false }
+        );
+
+        dom.plotCanvas.addEventListener('touchend', () => {
+          state.isScrubbingPlot = false;
+          state.isDraggingYAxis = false;
+          state.hoverTime = null;
+          renderAll();
+        });
+
+        // Responsive window resize
+        window.addEventListener('resize', () => {
+          renderPlotCanvas();
+          renderSpringCanvas();
+        });
+      }
+
+      /**
+       * Main requestAnimationFrame loop advancing time smoothly when playing
+       */
+      function animationLoop(timestamp) {
+        if (state.isPlaying) {
+          if (state.lastFrameTimestamp !== null) {
+            const dt = ((timestamp - state.lastFrameTimestamp) / 1000) * state.playbackSpeed;
+            state.currentTime += dt;
+            if (state.currentTime > state.timeSpan) {
+              state.currentTime %= state.timeSpan;
+            }
+            renderAll();
+          }
+          state.lastFrameTimestamp = timestamp;
+        }
+        requestAnimationFrame(animationLoop);
+      }
+
+      // Initialize application on window load
+      window.onload = function () {
+        initializeEventListeners();
+        syncPhasePresetHighlight();
+        renderAll();
+        requestAnimationFrame(animationLoop);
+      };
+    })();
+  </script>
+</body>
+</html>
