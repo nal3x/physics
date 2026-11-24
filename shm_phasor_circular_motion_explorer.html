@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SHM Phasor &amp; Circular Motion Explorer — Hooke's Law Visualizer</title>
+  <!-- Load Tailwind CSS for responsive layout and scientific UI styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Load Inter for crisp UI typography and JetBrains Mono for tabular math readouts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px;
+      border-radius: 9999px;
+      background: #e2e8f0;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      margin-top: -5px;
+      height: 16px;
+      width: 16px;
+      border-radius: 9999px;
+      background: #0f172a;
+      border: 2px solid #ffffff;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.35);
+      transition: transform 0.12s ease, background-color 0.12s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.12);
+      background: #1e293b;
+    }
+
+    input[type="range"]:focus::-webkit-slider-thumb {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 6px;
+      border-radius: 9999px;
+      background: #e2e8f0;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      height: 16px;
+      width: 16px;
+      border-radius: 9999px;
+      background: #0f172a;
+      border: 2px solid #ffffff;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.35);
+    }
+
+    canvas {
+      touch-action: pan-y;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
+
+  <!-- Top Scientific Header -->
+  <header class="bg-white border-b border-slate-200/90 sticky top-0 z-30">
+    <div class="max-w-[1520px] mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-sm shrink-0">
+          <!-- Custom Inline SVG Phasor Circle + Projection Icon -->
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="12" r="6" />
+            <path d="M9 12l4.2-4.2" />
+            <path d="M13.2 7.8H21" stroke-dasharray="2 2" />
+            <circle cx="13.2" cy="7.8" r="1.5" fill="currentColor" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900">
+              SHM Phasor &amp; Circular Motion Explorer
+            </h1>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-800 border border-indigo-200/80">
+              Vertical Hooke's Law (F = &minus;kx) &bull; Acceleration Ignored
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 hidden sm:block">
+            Orthographic phasor projections: vertical spring (left), reference circle (center), x(t) plot (right), and vertical u(t) speed diagram (below circle)
+          </p>
+        </div>
+      </div>
+
+      <!-- Phasor Projection Identity Pill -->
+      <div class="flex items-center gap-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-700">
+        <span class="text-slate-400 font-sans font-medium">Projections:</span>
+        <span>&theta;(t) = &omega;t + &phi;₀</span>
+        <span class="text-slate-300">|</span>
+        <span class="text-blue-700 font-semibold">x = A sin&theta;</span>
+        <span class="text-slate-300">|</span>
+        <span class="text-emerald-700 font-semibold">u = &omega;A cos&theta;</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 max-w-[1520px] w-full mx-auto px-4 sm:px-6 py-5 space-y-5">
+
+    <!-- 1. Live Phasor & Kinematic Equations Bar -->
+    <section aria-label="Live Phasor and Kinematic Equations" class="bg-white border border-slate-200/90 rounded-2xl shadow-sm p-4 space-y-3.5">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <!-- Phasor Angle Card -->
+        <div class="rounded-xl border border-indigo-200/80 bg-indigo-50/50 px-3.5 py-2.5 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-semibold text-indigo-950 flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block"></span>
+              Phasor Angle &theta;(t)
+            </span>
+            <span class="font-mono text-[11px] text-indigo-700/80">&omega;t + &phi;₀ (CCW)</span>
+          </div>
+          <div id="eqPhase" class="font-mono text-xs sm:text-sm font-semibold text-indigo-700 tabular-nums truncate">
+            &theta;(t) = 2.00t + 0.00 rad
+          </div>
+        </div>
+
+        <!-- Vertical Position Card -->
+        <div class="rounded-xl border border-blue-200/80 bg-blue-50/50 px-3.5 py-2.5 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-semibold text-blue-950 flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
+              Position x(t)
+            </span>
+            <span class="font-mono text-[11px] text-blue-700/80">A &middot; sin(&omega;t + &phi;₀)</span>
+          </div>
+          <div id="eqPosition" class="font-mono text-xs sm:text-sm font-semibold text-blue-700 tabular-nums truncate">
+            x(t) = 2.00 &middot; sin(2.00t + 0.00) m
+          </div>
+        </div>
+
+        <!-- Vertical Velocity Card -->
+        <div class="rounded-xl border border-emerald-200/80 bg-emerald-50/50 px-3.5 py-2.5 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-semibold text-emerald-950 flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block"></span>
+              Speed u(t) = dx/dt
+            </span>
+            <span class="font-mono text-[11px] text-emerald-700/80">&omega;A &middot; cos(&omega;t + &phi;₀)</span>
+          </div>
+          <div id="eqVelocity" class="font-mono text-xs sm:text-sm font-semibold text-emerald-700 tabular-nums truncate">
+            u(t) = 4.00 &middot; cos(2.00t + 0.00) m/s
+          </div>
+        </div>
+      </div>
+
+      <!-- Derived Metrics & Instantaneous Cursor Pill -->
+      <div class="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="px-2.5 py-1 rounded-lg bg-slate-100/90 border border-slate-200/80 text-slate-700 font-mono tabular-nums">
+            <span class="text-slate-500 font-sans">Period</span> T = 2&pi;/&omega; = <strong id="metricPeriod" class="text-slate-900">3.14 s</strong>
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-slate-100/90 border border-slate-200/80 text-slate-700 font-mono tabular-nums">
+            <span class="text-slate-500 font-sans">Freq</span> f = &omega;/(2&pi;) = <strong id="metricFreq" class="text-slate-900">0.32 Hz</strong>
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-blue-50/80 border border-blue-200/70 text-blue-800 font-mono tabular-nums">
+            x<sub>max</sub> = A = <strong id="metricYMax">2.00 m</strong>
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-emerald-50/80 border border-emerald-200/70 text-emerald-800 font-mono tabular-nums">
+            u<sub>max</sub> = &omega;A = <strong id="metricUMax">4.00 m/s</strong>
+          </span>
+        </div>
+
+        <!-- Instantaneous State Pill -->
+        <div class="flex flex-wrap items-center gap-2 bg-slate-900 text-white px-3 py-1.5 rounded-xl font-mono text-xs tabular-nums shadow-sm">
+          <span class="text-slate-300">t = <strong id="liveT" class="text-white">0.00 s</strong></span>
+          <span class="text-slate-600">|</span>
+          <span class="text-indigo-300">&theta; = <strong id="liveTheta" class="text-white">0.00 rad (0&deg;)</strong></span>
+          <span class="text-slate-600">|</span>
+          <span class="text-blue-300">x = <strong id="liveY" class="text-white">+0.00</strong> m</span>
+          <span class="text-slate-600">|</span>
+          <span class="text-emerald-300">u = <strong id="liveU" class="text-white">+4.00</strong> m/s</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main 2-Column Layout: Controls Sidebar + Unified 4-Zone Canvas Stage -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+      <!-- 2. Interactive Controls Sidebar -->
+      <aside class="lg:col-span-3 bg-white border border-slate-200/90 rounded-2xl shadow-sm p-4 sm:p-5 space-y-5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-800">
+            Phasor &amp; Spring Controls
+          </h2>
+          <span class="text-[11px] font-mono text-slate-400">Fixed A, &omega;</span>
+        </div>
+
+        <!-- Fixed Parameters Readout (A and ω) -->
+        <div class="grid grid-cols-2 gap-2.5">
+          <div class="rounded-xl bg-slate-50 border border-slate-200/80 px-3 py-2">
+            <div class="text-[11px] font-semibold text-slate-500">Amplitude (A)</div>
+            <div class="font-mono text-sm font-bold text-slate-900 tabular-nums mt-0.5">2.0 m</div>
+          </div>
+          <div class="rounded-xl bg-slate-50 border border-slate-200/80 px-3 py-2">
+            <div class="text-[11px] font-semibold text-slate-500">Angular Speed (&omega;)</div>
+            <div class="font-mono text-sm font-bold text-slate-900 tabular-nums mt-0.5">2.0 rad/s</div>
+          </div>
+        </div>
+
+        <!-- Initial Phase φ₀: Two Options Only (0 and π/2) -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-700">
+              Initial Phase <span class="font-mono text-slate-900">(&phi;₀)</span>
+            </span>
+            <span id="activePhiLabel" class="font-mono text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded-md tabular-nums">
+              0 rad
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2" role="group" aria-label="Initial phase selection">
+            <button type="button" data-phi="0" class="phi-preset py-2 px-3 rounded-xl text-xs font-mono font-semibold border bg-slate-900 text-white border-slate-900 shadow-xs transition cursor-pointer">
+              &phi;₀ = 0
+            </button>
+            <button type="button" data-phi="1.57079632679" class="phi-preset py-2 px-3 rounded-xl text-xs font-mono font-semibold border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 transition cursor-pointer">
+              &phi;₀ = &pi;/2
+            </button>
+          </div>
+        </div>
+
+        <!-- Time Span Control -->
+        <div class="space-y-1.5 pt-2 border-t border-slate-100">
+          <div class="flex items-center justify-between">
+            <label for="sliderTimeSpan" class="text-xs font-semibold text-slate-700">
+              Time Span <span class="font-mono text-slate-500">(t<sub>max</sub>)</span>
+            </label>
+            <div class="flex items-center gap-1">
+              <input
+                id="inputTimeSpan"
+                type="number"
+                min="3"
+                max="16"
+                step="0.5"
+                value="8.0"
+                class="w-16 text-right font-mono text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 tabular-nums"
+              />
+              <span class="text-xs font-mono text-slate-500 w-6">s</span>
+            </div>
+          </div>
+          <input id="sliderTimeSpan" type="range" min="3" max="16" step="0.5" value="8" class="w-full" />
+        </div>
+
+        <!-- Visual Overlays -->
+        <div class="space-y-2 pt-2 border-t border-slate-100">
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-600">
+            Visual Overlays
+          </div>
+
+          <label class="flex items-center justify-between p-2 rounded-xl border border-slate-200/80 hover:bg-slate-50/80 cursor-pointer transition select-none">
+            <span class="text-xs font-semibold text-slate-800">Orthographic projection lines</span>
+            <input id="toggleProjections" type="checkbox" checked class="sr-only peer" />
+            <span class="w-9 h-5 bg-slate-200 peer-checked:bg-blue-600 rounded-full relative transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:bg-white after:rounded-full after:shadow-xs after:transition-transform peer-checked:after:translate-x-4"></span>
+          </label>
+
+          <label class="flex items-center justify-between p-2 rounded-xl border border-slate-200/80 hover:bg-slate-50/80 cursor-pointer transition select-none">
+            <span class="text-xs font-semibold text-slate-800">Spring mass velocity arrow <span class="font-mono text-emerald-700">u</span></span>
+            <input id="toggleVelVector" type="checkbox" checked class="sr-only peer" />
+            <span class="w-9 h-5 bg-slate-200 peer-checked:bg-emerald-600 rounded-full relative transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:bg-white after:rounded-full after:shadow-xs after:transition-transform peer-checked:after:translate-x-4"></span>
+          </label>
+
+          <label class="flex items-center justify-between p-2 rounded-xl border border-slate-200/80 hover:bg-slate-50/80 cursor-pointer transition select-none">
+            <span class="text-xs font-semibold text-slate-800">Phase angle sector <span class="font-mono text-indigo-700">&theta;(t)</span></span>
+            <input id="toggleAngleArcs" type="checkbox" checked class="sr-only peer" />
+            <span class="w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full relative transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:bg-white after:rounded-full after:shadow-xs after:transition-transform peer-checked:after:translate-x-4"></span>
+          </label>
+        </div>
+
+        <!-- Time & Playback Controls -->
+        <div class="space-y-3 pt-2 border-t border-slate-100">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-600">
+              Time &amp; Rotation
+            </span>
+            <span id="scrubberTimeBadge" class="font-mono text-xs font-semibold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md tabular-nums">
+              t = 0.00 s
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button id="btnPlayPause" type="button" class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition cursor-pointer">
+              <svg id="iconPlay" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <svg id="iconPause" class="w-4 h-4 hidden" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+              </svg>
+              <span id="labelPlayPause">Play</span>
+            </button>
+
+            <button id="btnResetTime" type="button" class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200/80 text-slate-800 border border-slate-200 transition cursor-pointer">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+              <span>Reset t=0</span>
+            </button>
+          </div>
+
+          <!-- Playback Speed Selector -->
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[11px] font-semibold text-slate-600">Speed</span>
+            <div class="grid grid-cols-3 gap-1 p-0.5 rounded-lg bg-slate-100 border border-slate-200/80" role="group" aria-label="Playback speed">
+              <button type="button" data-speed="0.25" class="speed-btn px-2 py-1 rounded-md text-[11px] font-mono font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer">
+                0.25x
+              </button>
+              <button type="button" data-speed="0.5" class="speed-btn px-2 py-1 rounded-md text-[11px] font-mono font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer">
+                0.5x
+              </button>
+              <button type="button" data-speed="1" class="speed-btn px-2 py-1 rounded-md text-[11px] font-mono font-semibold bg-white text-slate-900 shadow-xs transition cursor-pointer">
+                1x
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <input id="sliderCurrentTime" type="range" min="0" max="8" step="0.01" value="0" class="w-full" />
+            <div class="flex justify-between text-[10px] font-mono text-slate-400">
+              <span>0.0 s</span>
+              <span>Scrub time t</span>
+              <span id="scrubberMaxLabel">8.0 s</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 3. Unified 4-Zone Visualization Stage -->
+      <div class="lg:col-span-9 space-y-4">
+        <section class="bg-white border border-slate-200/90 rounded-2xl shadow-sm p-4 sm:p-5 space-y-3">
+          <!-- Stage Header & Live Physics Insight -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
+            <div>
+              <h2 class="text-sm sm:text-base font-bold text-slate-900">
+                4 Coupled Regions: Spring (Left) &bull; Phasor Circle (Center) &bull; x(t) Plot (Right) &bull; Vertical Speed u(t) (Below)
+              </h2>
+              <p id="physicsInsightText" class="text-xs text-slate-500">
+                At &phi;₀ = 0, t = 0: phasor points right (+&omega;A), vertical projection starts at x = 0 moving upward with u = +&omega;A.
+              </p>
+            </div>
+
+            <!-- Compact Inline Legend -->
+            <div class="flex flex-wrap items-center gap-3 text-xs font-medium">
+              <span class="flex items-center gap-1.5 text-slate-700">
+                <span class="w-3 h-0.5 bg-blue-600 inline-block rounded-full"></span>
+                <span>Phasor &amp; Position x(t)</span>
+              </span>
+              <span class="flex items-center gap-1.5 text-slate-700">
+                <span class="w-3 h-0.5 bg-emerald-600 inline-block rounded-full"></span>
+                <span>Speed u(t)</span>
+              </span>
+              <span class="flex items-center gap-1.5 text-slate-700">
+                <span class="w-3 h-0.5 bg-indigo-600 inline-block rounded-full"></span>
+                <span>Angle &theta;(t)</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Unified Single Canvas guaranteeing exact horizontal & vertical orthographic alignment -->
+          <div class="flex flex-col space-y-1.5">
+            <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold text-slate-500 px-1">
+              <span>Horizontal dashed line: x(t) = A sin&theta; &bull; Vertical dashed line: u(t) = &omega;A cos&theta;</span>
+              <span class="font-mono text-[10.5px] text-slate-400">Drag in x(t) or u(t) plot to scrub time t</span>
+            </div>
+            <div id="unifiedContainer" class="relative w-full h-[610px] sm:h-[670px] xl:h-[710px] rounded-xl border border-slate-200/80 bg-slate-50/30 overflow-hidden">
+              <canvas id="unifiedCanvas" class="block w-full h-full cursor-crosshair"></canvas>
+            </div>
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    /**
+     * SHM Phasor & Circular Motion Explorer
+     *
+     * Unified 4-zone orthographic projection diagram:
+     *   1. Top-Left: Vertical Hooke's law mass-spring oscillator (F = -kx, acceleration ignored)
+     *   2. Top-Center: Reference circle with rotating phasor of radius A:
+     *        - Vertical diameter spans [-A, +A] -> x(t) = A sin(ωt + φ₀)
+     *        - Horizontal diameter spans [-ωA, +ωA] -> u(t) = ωA cos(ωt + φ₀)
+     *   3. Top-Right: Position x(t) vs. horizontal time t(s), aligned horizontally with the
+     *      phasor tip and oscillating mass.
+     *   4. Bottom-Center (directly below the circle): Speed u(t) vs. downward-pointing time t(s),
+     *      aligned vertically with the phasor's horizontal x-axis projection on [-ωA, +ωA].
+     */
+    (function () {
+      'use strict';
+
+      const DEFAULTS = {
+        A: 2.0,
+        omega: 2.0,
+        phi0: 0.0,
+        timeSpan: 8.0,
+        playbackSpeed: 1.0,
+        showProjections: true,
+        showVelVector: true,
+        showAngleArcs: true,
+      };
+
+      const state = {
+        A: DEFAULTS.A,
+        omega: DEFAULTS.omega,
+        phi0: DEFAULTS.phi0,
+        timeSpan: DEFAULTS.timeSpan,
+        currentTime: 0.0,
+        isPlaying: false,
+        playbackSpeed: DEFAULTS.playbackSpeed,
+        showProjections: DEFAULTS.showProjections,
+        showVelVector: DEFAULTS.showVelVector,
+        showAngleArcs: DEFAULTS.showAngleArcs,
+        hoverTime: null,
+        isScrubbingXPlot: false,
+        isScrubbingUPlot: false,
+        lastFrameTimestamp: null,
+        hitRegions: {
+          circle: null,
+          xPlot: null,
+          uPlot: null,
+        },
+      };
+
+      const COLORS = {
+        y: '#2563eb',            // blue-600 (Position x & Phasor)
+        u: '#059669',            // emerald-600 (Speed u)
+        theta: '#4f46e5',        // indigo-600 (Phasor angle)
+        thetaFill: 'rgba(79, 70, 229, 0.12)',
+        grid: '#e2e8f0',         // slate-200
+        axis: '#64748b',         // slate-500
+        text: '#334155',         // slate-700
+        muted: '#94a3b8',        // slate-400
+        cursor: '#0f172a',       // slate-900
+      };
+
+      const dom = {
+        eqPhase: document.getElementById('eqPhase'),
+        eqPosition: document.getElementById('eqPosition'),
+        eqVelocity: document.getElementById('eqVelocity'),
+        metricPeriod: document.getElementById('metricPeriod'),
+        metricFreq: document.getElementById('metricFreq'),
+        metricYMax: document.getElementById('metricYMax'),
+        metricUMax: document.getElementById('metricUMax'),
+        liveT: document.getElementById('liveT'),
+        liveTheta: document.getElementById('liveTheta'),
+        liveY: document.getElementById('liveY'),
+        liveU: document.getElementById('liveU'),
+
+        // Phase Option Buttons & Time Span
+        activePhiLabel: document.getElementById('activePhiLabel'),
+        phiPresets: document.querySelectorAll('.phi-preset'),
+        sliderTimeSpan: document.getElementById('sliderTimeSpan'),
+        inputTimeSpan: document.getElementById('inputTimeSpan'),
+
+        // Overlay Switches
+        toggleProjections: document.getElementById('toggleProjections'),
+        toggleVelVector: document.getElementById('toggleVelVector'),
+        toggleAngleArcs: document.getElementById('toggleAngleArcs'),
+
+        // Playback & Time Scrubber
+        btnPlayPause: document.getElementById('btnPlayPause'),
+        iconPlay: document.getElementById('iconPlay'),
+        iconPause: document.getElementById('iconPause'),
+        labelPlayPause: document.getElementById('labelPlayPause'),
+        btnResetTime: document.getElementById('btnResetTime'),
+        speedBtns: document.querySelectorAll('.speed-btn'),
+        sliderCurrentTime: document.getElementById('sliderCurrentTime'),
+        scrubberTimeBadge: document.getElementById('scrubberTimeBadge'),
+        scrubberMaxLabel: document.getElementById('scrubberMaxLabel'),
+
+        // Unified Canvas & Insight
+        unifiedContainer: document.getElementById('unifiedContainer'),
+        unifiedCanvas: document.getElementById('unifiedCanvas'),
+        physicsInsightText: document.getElementById('physicsInsightText'),
+      };
+
+      const ctx = dom.unifiedCanvas.getContext('2d');
+
+      function clamp(val, min, max) {
+        return Math.min(Math.max(val, min), max);
+      }
+
+      function cleanZero(val) {
+        return Math.abs(val) < 1e-9 ? 0 : val;
+      }
+
+      function normalizeAngle(rad) {
+        const twoPi = 2 * Math.PI;
+        let a = rad % twoPi;
+        if (a < 0) a += twoPi;
+        return a;
+      }
+
+      function evaluatePhasorSHM(t) {
+        const theta = state.omega * t + state.phi0;
+        const wrappedTheta = normalizeAngle(theta);
+        const sinVal = Math.sin(theta);
+        const cosVal = Math.cos(theta);
+
+        const x = cleanZero(state.A * sinVal);
+        const u = cleanZero(state.A * state.omega * cosVal);
+
+        return { theta, wrappedTheta, x, u, sinVal, cosVal };
+      }
+
+      function computeNiceStep(roughStep) {
+        if (roughStep <= 0 || !isFinite(roughStep)) return 1;
+        const exponent = Math.floor(Math.log10(roughStep));
+        const fraction = roughStep / Math.pow(10, exponent);
+        let niceFraction;
+        if (fraction <= 1) niceFraction = 1;
+        else if (fraction <= 2) niceFraction = 2;
+        else if (fraction <= 2.5) niceFraction = 2.5;
+        else if (fraction <= 5) niceFraction = 5;
+        else niceFraction = 10;
+        return niceFraction * Math.pow(10, exponent);
+      }
+
+      function formatSignedPhase(phi) {
+        if (Math.abs(phi) < 0.005) return '+ 0.00';
+        return phi >= 0 ? `+ ${phi.toFixed(2)}` : `− ${Math.abs(phi).toFixed(2)}`;
+      }
+
+      function resizeCanvas(canvas, container) {
+        const rect = container.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const targetW = Math.max(1, Math.round(rect.width * dpr));
+        const targetH = Math.max(1, Math.round(rect.height * dpr));
+        if (canvas.width !== targetW || canvas.height !== targetH) {
+          canvas.width = targetW;
+          canvas.height = targetH;
+        }
+        return { width: rect.width, height: rect.height, dpr };
+      }
+
+      function updateUIReadouts() {
+        const A = state.A;
+        const w = state.omega;
+        const phi = state.phi0;
+        const uMax = A * w;
+        const period = (2 * Math.PI) / w;
+        const freq = w / (2 * Math.PI);
+
+        const phaseStr = formatSignedPhase(phi);
+        dom.eqPhase.textContent = `θ(t) = ${w.toFixed(2)}t ${phaseStr} rad`;
+        dom.eqPosition.textContent = `x(t) = ${A.toFixed(2)} · sin(${w.toFixed(2)}t ${phaseStr}) m`;
+        dom.eqVelocity.textContent = `u(t) = ${uMax.toFixed(2)} · cos(${w.toFixed(2)}t ${phaseStr}) m/s`;
+
+        dom.metricPeriod.textContent = `${period.toFixed(2)} s`;
+        dom.metricFreq.textContent = `${freq.toFixed(2)} Hz`;
+        dom.metricYMax.textContent = `${A.toFixed(2)} m`;
+        dom.metricUMax.textContent = `${uMax.toFixed(2)} m/s`;
+
+        const inst = evaluatePhasorSHM(state.currentTime);
+        const deg = (inst.wrappedTheta * 180) / Math.PI;
+        dom.liveT.textContent = `${state.currentTime.toFixed(2)} s`;
+        dom.liveTheta.textContent = `${inst.wrappedTheta.toFixed(2)} rad (${deg.toFixed(0)}°)`;
+        dom.liveY.textContent = (inst.x >= 0 ? '+' : '') + inst.x.toFixed(2);
+        dom.liveU.textContent = (inst.u >= 0 ? '+' : '') + inst.u.toFixed(2);
+
+        dom.scrubberTimeBadge.textContent = `t = ${state.currentTime.toFixed(2)} s`;
+        dom.sliderCurrentTime.value = state.currentTime.toFixed(2);
+
+        const xThresh = 0.05 * A;
+        const uThresh = 0.05 * uMax;
+        if (Math.abs(inst.x) <= xThresh) {
+          const dir = inst.u > uThresh ? 'upward at peak speed (+ωA)' : 'downward at peak speed (−ωA)';
+          dom.physicsInsightText.textContent =
+            `Equilibrium crossing (x ≈ 0): phasor crosses horizontal diameter (±ωA), spring mass passes x = 0 moving ${dir}.`;
+        } else if (inst.x > 0) {
+          const motion = inst.u > uThresh ? 'moving upward toward +A' : inst.u < -uThresh ? 'moving downward toward equilibrium' : 'momentarily at top turning point (+A)';
+          dom.physicsInsightText.textContent =
+            `Upper semicircle (x > 0): spring stretched upward (F = −kx < 0), mass is ${motion}.`;
+        } else {
+          const motion = inst.u < -uThresh ? 'moving downward toward −A' : inst.u > uThresh ? 'moving upward toward equilibrium' : 'momentarily at bottom turning point (−A)';
+          dom.physicsInsightText.textContent =
+            `Lower semicircle (x < 0): spring compressed downward (F = −kx > 0), mass is ${motion}.`;
+        }
+      }
+
+      /**
+       * Renders the unified 4-zone orthographic diagram on a single canvas:
+       *   - Top-Left: Vertical Hooke's law mass-spring oscillator
+       *   - Top-Center: Reference circle with rotating phasor (±A vertically, ±ωA horizontally)
+       *   - Top-Right: Position x(t) vs. horizontal t(s)
+       *   - Bottom-Center (below circle): Speed u(t) vs. downward t(s)
+       */
+      function renderUnifiedCanvas() {
+        try {
+          const { width, height, dpr } = resizeCanvas(dom.unifiedCanvas, dom.unifiedContainer);
+          ctx.save();
+          ctx.scale(dpr, dpr);
+          ctx.clearRect(0, 0, width, height);
+
+          const isCompact = width < 640;
+          const topPad = 46;
+          const bottomPad = 32;
+          const leftPad = isCompact ? 14 : 24;
+          const rightPad = isCompact ? 26 : 38;
+
+          // Horizontal column partitioning: [Spring (left)] | [Phasor Circle + Vertical Speed (center)] | [x(t) Plot (right)]
+          const springColW = isCompact ? Math.max(66, width * 0.14) : Math.max(96, width * 0.14);
+          const springCenterX = leftPad + springColW * 0.48;
+
+          const remainingW = width - leftPad - springColW - rightPad;
+          const circleZoneW = remainingW * (isCompact ? 0.52 : 0.48);
+          const xPlotZoneW = remainingW - circleZoneW;
+
+          // Vertical partitioning: Top row (Spring + Circle + x(t)) vs Bottom row (Vertical Speed u(t) below Circle)
+          const topRowH = height * 0.50;
+          const centerY = topPad + (topRowH - topPad) * 0.52;
+          const maxR = Math.max(54, Math.min(circleZoneW * 0.38, (topRowH - topPad) * 0.44));
+          const circleCenterX = leftPad + springColW + circleZoneW * 0.50;
+
+          const activeR = maxR;
+          const uMax = state.A * state.omega;
+          const tMax = state.timeSpan;
+          const inst = evaluatePhasorSHM(state.currentTime);
+
+          // Phasor tip coordinates (CCW from +x axis: cos -> horizontal, sin -> upward)
+          const tipX = circleCenterX + activeR * inst.cosVal;
+          const tipY = centerY - activeR * inst.sinVal;
+
+          // Right-hand x(t) plot bounds (aligned horizontally with [centerY - activeR, centerY + activeR])
+          const xPlotLeft = leftPad + springColW + circleZoneW + (isCompact ? 16 : 26);
+          const xPlotW = Math.max(60, width - xPlotLeft - rightPad);
+          const xPlotTop = centerY - maxR;
+          const xPlotH = maxR * 2;
+
+          // Bottom-center vertical speed u(t) plot bounds (aligned horizontally with [circleCenterX - activeR, circleCenterX + activeR])
+          const uDiagLeft = circleCenterX - activeR;
+          const uDiagRight = circleCenterX + activeR;
+          const uDiagW = activeR * 2;
+          const uPlotTop = centerY + maxR + (isCompact ? 42 : 48);
+          const uPlotH = Math.max(70, height - uPlotTop - bottomPad);
+
+          // Save hit regions for pointer interactions
+          state.hitRegions.circle = { cx: circleCenterX, cy: centerY, activeR, maxR };
+          state.hitRegions.xPlot = { left: xPlotLeft, top: xPlotTop, width: xPlotW, height: xPlotH };
+          state.hitRegions.uPlot = { left: uDiagLeft, top: uPlotTop, width: uDiagW, height: uPlotH };
+
+          // Helper coordinate mappers
+          const tToXPlotX = (t) => xPlotLeft + (t / tMax) * xPlotW;
+          const xValToXPlotY = (xVal) => centerY - (xVal / state.A) * activeR;
+
+          const tToUPlotY = (t) => uPlotTop + (t / tMax) * uPlotH;
+          const uValToUPlotX = (uVal) => circleCenterX + (uVal / uMax) * activeR;
+
+          // Subtle zone divider cues
+          ctx.save();
+          ctx.strokeStyle = 'rgba(203, 213, 225, 0.55)';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([4, 6]);
+          const div1X = leftPad + springColW * 0.92;
+          ctx.beginPath();
+          ctx.moveTo(div1X, 14);
+          ctx.lineTo(div1X, topRowH + 14);
+          ctx.stroke();
+          ctx.restore();
+
+          // Zone Headers
+          ctx.save();
+          ctx.font = '700 10.5px "Inter", sans-serif';
+          ctx.fillStyle = '#64748b';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText('1. VERTICAL SPRING', springCenterX, 10);
+          ctx.fillText('2. REFERENCE CIRCLE & PHASOR', circleCenterX, 10);
+          ctx.fillText('3. POSITION x(t) vs. t(s)', xPlotLeft + xPlotW * 0.5, 10);
+          ctx.restore();
+
+          // =========================================================================
+          // ZONE 3 (TOP-RIGHT): Position x(t) vs. Horizontal Time t(s)
+          // =========================================================================
+          ctx.save();
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(xPlotLeft, xPlotTop, xPlotW, xPlotH);
+
+          // Horizontal grid lines at +A, 0, -A
+          [activeR, 0, -activeR].forEach((offset, idx) => {
+            const gy = centerY - offset;
+            ctx.beginPath();
+            ctx.moveTo(xPlotLeft, gy);
+            ctx.lineTo(xPlotLeft + xPlotW, gy);
+            ctx.strokeStyle = idx === 1 ? COLORS.axis : COLORS.grid;
+            ctx.lineWidth = idx === 1 ? 1.3 : 1;
+            ctx.stroke();
+          });
+
+          // Vertical time gridlines & labels along t(s) axis
+          const stepT = computeNiceStep(tMax / (isCompact ? 4 : 6));
+          ctx.font = '500 10px "JetBrains Mono", monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          for (let t = 0; t <= tMax + 1e-6; t += stepT) {
+            const gx = tToXPlotX(t);
+            ctx.beginPath();
+            ctx.moveTo(gx, xPlotTop);
+            ctx.lineTo(gx, xPlotTop + xPlotH);
+            ctx.strokeStyle = t === 0 ? COLORS.axis : COLORS.grid;
+            ctx.lineWidth = t === 0 ? 1.3 : 1;
+            ctx.stroke();
+
+            if (t > 0) {
+              ctx.fillStyle = COLORS.text;
+              ctx.fillText(`${stepT < 1 ? t.toFixed(1) : t.toFixed(0)}`, gx, centerY + 5);
+            }
+          }
+
+          // Vertical x(t) axis with upward arrow & horizontal t(s) axis with rightward arrow
+          ctx.strokeStyle = '#334155';
+          ctx.fillStyle = '#334155';
+          ctx.lineWidth = 1.6;
+          // Vertical x(t) axis
+          ctx.beginPath();
+          ctx.moveTo(xPlotLeft, xPlotTop + xPlotH + 6);
+          ctx.lineTo(xPlotLeft, xPlotTop - 14);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(xPlotLeft, xPlotTop - 16);
+          ctx.lineTo(xPlotLeft - 3.5, xPlotTop - 9);
+          ctx.lineTo(xPlotLeft + 3.5, xPlotTop - 9);
+          ctx.closePath();
+          ctx.fill();
+
+          // Horizontal t(s) axis
+          ctx.beginPath();
+          ctx.moveTo(xPlotLeft, centerY);
+          ctx.lineTo(xPlotLeft + xPlotW + 12, centerY);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(xPlotLeft + xPlotW + 14, centerY);
+          ctx.lineTo(xPlotLeft + xPlotW + 7, centerY - 3.5);
+          ctx.lineTo(xPlotLeft + xPlotW + 7, centerY + 3.5);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.font = '700 11px "JetBrains Mono", monospace';
+          ctx.fillStyle = COLORS.y;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText('x(t)', xPlotLeft + 6, xPlotTop - 4);
+
+          ctx.fillStyle = '#334155';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('t(s)', xPlotLeft + xPlotW + 17, centerY);
+
+          // Full faint preview curve of x(t) across [0, tMax]
+          const xSamples = Math.max(240, Math.round(xPlotW * 1.4));
+          ctx.beginPath();
+          for (let i = 0; i <= xSamples; i++) {
+            const t = (i / xSamples) * tMax;
+            const px = tToXPlotX(t);
+            const py = xValToXPlotY(state.A * Math.sin(state.omega * t + state.phi0));
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.strokeStyle = 'rgba(37, 99, 235, 0.22)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Bold traced x(t) curve from t = 0 up to currentTime
+          const activeSamples = Math.max(2, Math.round((state.currentTime / tMax) * xSamples));
+          ctx.beginPath();
+          for (let i = 0; i <= activeSamples; i++) {
+            const t = (i / activeSamples) * state.currentTime;
+            const px = tToXPlotX(t);
+            const py = xValToXPlotY(state.A * Math.sin(state.omega * t + state.phi0));
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.strokeStyle = COLORS.y;
+          ctx.lineWidth = 2.8;
+          ctx.lineJoin = 'round';
+          ctx.stroke();
+
+          // Vertical time cursor line on x(t) plot
+          const curXPlotX = tToXPlotX(state.currentTime);
+          const curXPlotY = xValToXPlotY(inst.x);
+          ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(curXPlotX, xPlotTop);
+          ctx.lineTo(curXPlotX, xPlotTop + xPlotH);
+          ctx.stroke();
+          ctx.restore();
+
+          // =========================================================================
+          // ZONE 4 (BOTTOM-CENTER): Vertical Speed Diagram u(t) vs. Downward t(s)
+          // =========================================================================
+          ctx.save();
+          // Zone 4 header positioned cleanly on the left side of the speed diagram
+          ctx.font = '700 10.5px "Inter", sans-serif';
+          ctx.fillStyle = '#64748b';
+          ctx.textAlign = 'right';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('4. SPEED u(t)', uDiagLeft - 14, uPlotTop + 14);
+          ctx.font = '500 9.5px "Inter", sans-serif';
+          ctx.fillText('vs. downward t(s)', uDiagLeft - 14, uPlotTop + 28);
+
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(uDiagLeft, uPlotTop, uDiagW, uPlotH);
+
+          // Vertical gridlines at -ωA, 0, +ωA aligned directly with circle horizontal projections
+          [-activeR, 0, activeR].forEach((offset, idx) => {
+            const gx = circleCenterX + offset;
+            ctx.beginPath();
+            ctx.moveTo(gx, uPlotTop);
+            ctx.lineTo(gx, uPlotTop + uPlotH);
+            ctx.strokeStyle = idx === 1 ? COLORS.axis : COLORS.grid;
+            ctx.lineWidth = idx === 1 ? 1.3 : 1;
+            ctx.stroke();
+          });
+
+          // Horizontal time gridlines & labels along downward t(s) axis
+          const stepTU = computeNiceStep(tMax / 4);
+          ctx.font = '500 10px "JetBrains Mono", monospace';
+          ctx.textAlign = 'right';
+          ctx.textBaseline = 'middle';
+          for (let t = 0; t <= tMax + 1e-6; t += stepTU) {
+            const gy = tToUPlotY(t);
+            ctx.beginPath();
+            ctx.moveTo(uDiagLeft, gy);
+            ctx.lineTo(uDiagRight, gy);
+            ctx.strokeStyle = t === 0 ? COLORS.axis : COLORS.grid;
+            ctx.lineWidth = t === 0 ? 1.3 : 1;
+            ctx.stroke();
+
+            if (t > 0) {
+              ctx.fillStyle = COLORS.text;
+              ctx.fillText(`${stepTU < 1 ? t.toFixed(1) : t.toFixed(0)}`, circleCenterX - 6, gy);
+            }
+          }
+
+          // Top horizontal u(t) axis & central downward t(s) axis with downward arrow (matching sketch)
+          ctx.strokeStyle = '#334155';
+          ctx.fillStyle = '#334155';
+          ctx.lineWidth = 1.6;
+          // Horizontal u(t) axis at t = 0
+          ctx.beginPath();
+          ctx.moveTo(uDiagLeft - 10, uPlotTop);
+          ctx.lineTo(uDiagRight + 12, uPlotTop);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(uDiagRight + 14, uPlotTop);
+          ctx.lineTo(uDiagRight + 7, uPlotTop - 3.5);
+          ctx.lineTo(uDiagRight + 7, uPlotTop + 3.5);
+          ctx.closePath();
+          ctx.fill();
+
+          // Central downward t(s) axis
+          ctx.beginPath();
+          ctx.moveTo(circleCenterX, uPlotTop - 8);
+          ctx.lineTo(circleCenterX, uPlotTop + uPlotH + 12);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(circleCenterX, uPlotTop + uPlotH + 15);
+          ctx.lineTo(circleCenterX - 3.5, uPlotTop + uPlotH + 8);
+          ctx.lineTo(circleCenterX + 3.5, uPlotTop + uPlotH + 8);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.font = '700 11px "JetBrains Mono", monospace';
+          ctx.fillStyle = COLORS.u;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('u(t)', uDiagRight + 17, uPlotTop);
+
+          ctx.fillStyle = '#334155';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText('t(s)', circleCenterX, uPlotTop + uPlotH + 17);
+
+          // Full faint preview cosine curve u(t) = ωA cos(ωt + φ₀) plotted downward
+          const uSamples = Math.max(220, Math.round(uPlotH * 1.4));
+          ctx.beginPath();
+          for (let i = 0; i <= uSamples; i++) {
+            const t = (i / uSamples) * tMax;
+            const py = tToUPlotY(t);
+            const px = uValToUPlotX(uMax * Math.cos(state.omega * t + state.phi0));
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.strokeStyle = 'rgba(5, 150, 105, 0.22)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Bold traced cosine curve u(t) from t = 0 down to currentTime
+          const activeUSamples = Math.max(2, Math.round((state.currentTime / tMax) * uSamples));
+          ctx.beginPath();
+          for (let i = 0; i <= activeUSamples; i++) {
+            const t = (i / activeUSamples) * state.currentTime;
+            const py = tToUPlotY(t);
+            const px = uValToUPlotX(uMax * Math.cos(state.omega * t + state.phi0));
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.strokeStyle = COLORS.u;
+          ctx.lineWidth = 2.8;
+          ctx.lineJoin = 'round';
+          ctx.stroke();
+
+          // Horizontal time cursor line on u(t) plot
+          const curUPlotY = tToUPlotY(state.currentTime);
+          const curUPlotX = uValToUPlotX(inst.u);
+          ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(uDiagLeft, curUPlotY);
+          ctx.lineTo(uDiagRight, curUPlotY);
+          ctx.stroke();
+          ctx.restore();
+
+          // =========================================================================
+          // ZONE 2 (TOP-CENTER): Reference Circle & Rotating Phasor
+          // =========================================================================
+          ctx.save();
+          // Main reference circle
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 1.9;
+          ctx.beginPath();
+          ctx.arc(circleCenterX, centerY, activeR, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Vertical (+A / -A) and Horizontal (-ωA / +ωA) axes extending past circle
+          const axisExt = 18;
+          ctx.strokeStyle = '#64748b';
+          ctx.lineWidth = 1.3;
+          ctx.beginPath();
+          // Vertical axis
+          ctx.moveTo(circleCenterX, centerY + maxR + axisExt);
+          ctx.lineTo(circleCenterX, centerY - maxR - axisExt);
+          // Horizontal axis
+          ctx.moveTo(circleCenterX - maxR - axisExt, centerY);
+          ctx.lineTo(circleCenterX + maxR + axisExt, centerY);
+          ctx.stroke();
+
+          // Cardinal boundary dots & labels: +A, -A vertically and -ωA, +ωA horizontally (matching sketch)
+          ctx.fillStyle = '#0f172a';
+          [
+            { x: circleCenterX, y: centerY - activeR },
+            { x: circleCenterX, y: centerY + activeR },
+            { x: circleCenterX - activeR, y: centerY },
+            { x: circleCenterX + activeR, y: centerY },
+          ].forEach((pt) => {
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, 3.2, 0, Math.PI * 2);
+            ctx.fill();
+          });
+
+          ctx.font = '700 11px "JetBrains Mono", monospace';
+          ctx.fillStyle = COLORS.y;
+          ctx.textAlign = 'right';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText('+A', circleCenterX - 6, centerY - activeR - 3);
+          ctx.textBaseline = 'top';
+          ctx.fillText('−A', circleCenterX - 6, centerY + activeR + 3);
+
+          ctx.fillStyle = COLORS.u;
+          ctx.textAlign = 'right';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText('−ωA', circleCenterX - activeR - 5, centerY - 4);
+          ctx.textAlign = 'left';
+          ctx.fillText('+ωA', circleCenterX + activeR + 5, centerY - 4);
+
+          // Shaded angle sector θ(t) without floating 'θ' letter
+          if (state.showAngleArcs && inst.wrappedTheta > 0.02) {
+            const arcR = Math.min(34, activeR * 0.34);
+            ctx.fillStyle = COLORS.thetaFill;
+            ctx.beginPath();
+            ctx.moveTo(circleCenterX, centerY);
+            ctx.arc(circleCenterX, centerY, arcR, 0, -inst.wrappedTheta, true);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = COLORS.theta;
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.arc(circleCenterX, centerY, arcR, 0, -inst.wrappedTheta, true);
+            ctx.stroke();
+          }
+          ctx.restore();
+
+          // =========================================================================
+          // ORTHOGRAPHIC DASHED PROJECTION LINES (Connecting all 4 regions)
+          // =========================================================================
+          if (state.showProjections) {
+            ctx.save();
+            ctx.setLineDash([5, 4]);
+
+            // 1. Horizontal dashed line: Spring Mass (left) <-> Phasor Tip (center) <-> x(t) curve (right)
+            ctx.strokeStyle = COLORS.y;
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.moveTo(springCenterX, tipY);
+            ctx.lineTo(curXPlotX, curXPlotY);
+            ctx.stroke();
+
+            // 2. Vertical dashed line: reaches the horizontal axis of the phasor diagram (centerY),
+            //    spans to the phasor tip, and projects straight down to the u(t) curve (bottom-center)
+            const topVerticalProjY = Math.min(tipY, centerY);
+            ctx.strokeStyle = COLORS.u;
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.moveTo(tipX, topVerticalProjY);
+            ctx.lineTo(curUPlotX, curUPlotY);
+            ctx.stroke();
+
+            ctx.setLineDash([]);
+
+            // Projection trace dots on the circle's axes
+            ctx.fillStyle = COLORS.u;
+            ctx.beginPath();
+            ctx.arc(tipX, centerY, 4.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = COLORS.y;
+            ctx.beginPath();
+            ctx.arc(circleCenterX, tipY, 4.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+
+          // Pure Rotating Phasor Arrow (from circle center to tip)
+          ctx.save();
+          ctx.strokeStyle = COLORS.y;
+          ctx.fillStyle = COLORS.y;
+          ctx.lineWidth = 2.8;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(circleCenterX, centerY);
+          ctx.lineTo(tipX, tipY);
+          ctx.stroke();
+
+          // Phasor arrowhead at tip
+          const phAngle = Math.atan2(tipY - centerY, tipX - circleCenterX);
+          const headLen = 10;
+          ctx.beginPath();
+          ctx.moveTo(tipX, tipY);
+          ctx.lineTo(tipX - headLen * Math.cos(phAngle - 0.32), tipY - headLen * Math.sin(phAngle - 0.32));
+          ctx.lineTo(tipX - headLen * Math.cos(phAngle + 0.32), tipY - headLen * Math.sin(phAngle + 0.32));
+          ctx.closePath();
+          ctx.fill();
+
+          // Center pivot dot
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(circleCenterX, centerY, 3.8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+
+          // Active curve markers on x(t) plot and u(t) plot
+          ctx.save();
+          ctx.fillStyle = COLORS.y;
+          ctx.beginPath();
+          ctx.arc(curXPlotX, curXPlotY, 5.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          ctx.fillStyle = COLORS.u;
+          ctx.beginPath();
+          ctx.arc(curUPlotX, curUPlotY, 5.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
+
+          // =========================================================================
+          // ZONE 1 (TOP-LEFT): Vertical Hooke's Law Mass-Spring Oscillator (F = -kx)
+          // =========================================================================
+          const ceilingY = Math.max(14, centerY - maxR - 46);
+          const massRadius = isCompact ? 13 : 16;
+          const massY = tipY;
+          const springTop = ceilingY;
+          const springBot = Math.max(springTop + 18, massY - massRadius);
+
+          ctx.save();
+          // Ceiling support bar
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.moveTo(springCenterX - 20, ceilingY);
+          ctx.lineTo(springCenterX + 20, ceilingY);
+          ctx.stroke();
+
+          // Equilibrium dashed tick at centerY
+          ctx.setLineDash([3, 3]);
+          ctx.strokeStyle = '#94a3b8';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(springCenterX - 22, centerY);
+          ctx.lineTo(springCenterX + 22, centerY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Vertical coiled Hooke's law spring
+          const coils = 9;
+          const coilW = isCompact ? 8 : 10;
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 2;
+          ctx.lineJoin = 'round';
+          ctx.beginPath();
+          ctx.moveTo(springCenterX, springTop);
+          ctx.lineTo(springCenterX, springTop + 7);
+          const coilSpan = Math.max(8, springBot - springTop - 14);
+          for (let i = 1; i <= coils; i++) {
+            const frac = (i - 0.5) / coils;
+            const py = springTop + 7 + frac * coilSpan;
+            const px = springCenterX + (i % 2 === 0 ? coilW : -coilW);
+            ctx.lineTo(px, py);
+          }
+          ctx.lineTo(springCenterX, springBot - 7);
+          ctx.lineTo(springCenterX, springBot);
+          ctx.stroke();
+
+          // Oscillating mass bob
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(springCenterX, massY, massRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 1.8;
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '700 11px "Inter", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('m', springCenterX, massY);
+
+          // Optional velocity vector u(t) on the oscillating mass
+          if (state.showVelVector && Math.abs(inst.u) > 0.03 * uMax) {
+            const maxArrowPx = 38;
+            const arrowLen = (inst.u / uMax) * maxArrowPx;
+            const ax = springCenterX - massRadius - 9;
+            const ayEnd = massY - arrowLen;
+            const dir = arrowLen >= 0 ? -1 : 1;
+
+            ctx.strokeStyle = COLORS.u;
+            ctx.fillStyle = COLORS.u;
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(ax, massY);
+            ctx.lineTo(ax, ayEnd);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(ax, ayEnd);
+            ctx.lineTo(ax - 3.8, ayEnd - dir * 6);
+            ctx.lineTo(ax + 3.8, ayEnd - dir * 6);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.restore();
+
+          // =========================================================================
+          // HOVER INSPECTION CROSSHAIRS & FLOATING TOOLTIP
+          // =========================================================================
+          if (state.hoverTime !== null && state.hoverTime >= 0 && state.hoverTime <= tMax) {
+            const hx = tToXPlotX(state.hoverTime);
+            const hyU = tToUPlotY(state.hoverTime);
+            const hInst = evaluatePhasorSHM(state.hoverTime);
+
+            ctx.save();
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.32)';
+            ctx.setLineDash([4, 4]);
+            ctx.lineWidth = 1.2;
+
+            ctx.beginPath();
+            ctx.moveTo(hx, xPlotTop);
+            ctx.lineTo(hx, xPlotTop + xPlotH);
+            ctx.moveTo(uDiagLeft, hyU);
+            ctx.lineTo(uDiagRight, hyU);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            const boxW = 172;
+            const boxH = 82;
+            const boxX = Math.max(uDiagRight + 14, xPlotLeft);
+            const boxY = Math.min(uPlotTop + 44, height - bottomPad - boxH);
+
+            if (boxX + boxW <= width - 8) {
+              ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+              ctx.beginPath();
+              ctx.roundRect(boxX, boxY, boxW, boxH, 8);
+              ctx.fill();
+
+              ctx.font = '600 11px "JetBrains Mono", monospace';
+              ctx.textAlign = 'left';
+              ctx.textBaseline = 'top';
+
+              ctx.fillStyle = '#f8fafc';
+              ctx.fillText(`t = ${state.hoverTime.toFixed(2)} s`, boxX + 10, boxY + 8);
+
+              ctx.fillStyle = '#a5b4fc';
+              ctx.fillText(`θ = ${hInst.theta.toFixed(2)} rad`, boxX + 10, boxY + 26);
+
+              ctx.fillStyle = '#93c5fd';
+              ctx.fillText(`x = ${(hInst.x >= 0 ? '+' : '') + hInst.x.toFixed(2)} m`, boxX + 10, boxY + 44);
+
+              ctx.fillStyle = '#6ee7b7';
+              ctx.fillText(`u = ${(hInst.u >= 0 ? '+' : '') + hInst.u.toFixed(2)} m/s`, boxX + 10, boxY + 62);
+            }
+            ctx.restore();
+          }
+
+          ctx.restore();
+        } catch (err) {
+          console.error('Error rendering unified phasor canvas:', err);
+        }
+      }
+
+      function renderAll() {
+        updateUIReadouts();
+        renderUnifiedCanvas();
+      }
+
+      function bindSyncedParameter(sliderEl, inputEl, min, max, decimals, onUpdate) {
+        if (!sliderEl || !inputEl) return;
+
+        sliderEl.addEventListener('input', () => {
+          const val = clamp(parseFloat(sliderEl.value), min, max);
+          inputEl.value = val.toFixed(decimals);
+          onUpdate(val);
+        });
+
+        inputEl.addEventListener('input', () => {
+          const parsed = parseFloat(inputEl.value);
+          if (isNaN(parsed)) return;
+          const val = clamp(parsed, min, max);
+          sliderEl.value = val;
+          onUpdate(val);
+        });
+
+        inputEl.addEventListener('blur', () => {
+          const parsed = parseFloat(inputEl.value);
+          const val = isNaN(parsed) ? parseFloat(sliderEl.value) : clamp(parsed, min, max);
+          sliderEl.value = val;
+          inputEl.value = val.toFixed(decimals);
+          onUpdate(val);
+        });
+      }
+
+      function syncPhasePresetHighlight() {
+        const isPiOver2 = Math.abs(state.phi0 - Math.PI / 2) < 0.015;
+        if (dom.activePhiLabel) {
+          dom.activePhiLabel.textContent = isPiOver2 ? 'π/2 rad' : '0 rad';
+        }
+        dom.phiPresets.forEach((btn) => {
+          const targetPhi = parseFloat(btn.dataset.phi);
+          const isMatch = Math.abs(state.phi0 - targetPhi) < 0.015;
+          if (isMatch) {
+            btn.className = 'phi-preset py-2 px-3 rounded-xl text-xs font-mono font-semibold border bg-slate-900 text-white border-slate-900 shadow-xs transition cursor-pointer';
+          } else {
+            btn.className = 'phi-preset py-2 px-3 rounded-xl text-xs font-mono font-semibold border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 transition cursor-pointer';
+          }
+        });
+      }
+
+      function setPlaying(shouldPlay) {
+        state.isPlaying = shouldPlay;
+        state.lastFrameTimestamp = null;
+        if (shouldPlay) {
+          dom.iconPlay.classList.add('hidden');
+          dom.iconPause.classList.remove('hidden');
+          dom.labelPlayPause.textContent = 'Pause';
+          dom.btnPlayPause.classList.replace('bg-slate-900', 'bg-blue-600');
+          dom.btnPlayPause.classList.replace('hover:bg-slate-800', 'hover:bg-blue-700');
+        } else {
+          dom.iconPlay.classList.remove('hidden');
+          dom.iconPause.classList.add('hidden');
+          dom.labelPlayPause.textContent = 'Play';
+          dom.btnPlayPause.classList.replace('bg-blue-600', 'bg-slate-900');
+          dom.btnPlayPause.classList.replace('hover:bg-blue-700', 'hover:bg-slate-800');
+        }
+      }
+
+      function pointerToXPlotTime(clientX) {
+        const xp = state.hitRegions.xPlot;
+        if (!xp) return 0;
+        const rect = dom.unifiedCanvas.getBoundingClientRect();
+        const relX = clamp(clientX - rect.left - xp.left, 0, xp.width);
+        return (relX / xp.width) * state.timeSpan;
+      }
+
+      function pointerToUPlotTime(clientY) {
+        const up = state.hitRegions.uPlot;
+        if (!up) return 0;
+        const rect = dom.unifiedCanvas.getBoundingClientRect();
+        const relY = clamp(clientY - rect.top - up.top, 0, up.height);
+        return (relY / up.height) * state.timeSpan;
+      }
+
+      function isInsideRect(px, py, r, pad = 12) {
+        if (!r) return false;
+        return px >= r.left - pad && px <= r.left + r.width + pad && py >= r.top - pad && py <= r.top + r.height + pad;
+      }
+
+      function initializeEventListeners() {
+        // Two Initial Phase Option Buttons (0 and π/2)
+        dom.phiPresets.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.phi0 = parseFloat(btn.dataset.phi);
+            syncPhasePresetHighlight();
+            renderAll();
+          });
+        });
+
+        // Time Span
+        bindSyncedParameter(dom.sliderTimeSpan, dom.inputTimeSpan, 3, 16, 1, (val) => {
+          state.timeSpan = val;
+          dom.sliderCurrentTime.max = val;
+          dom.scrubberMaxLabel.textContent = `${val.toFixed(1)} s`;
+          if (state.currentTime > val) {
+            state.currentTime = val;
+          }
+          renderAll();
+        });
+
+        dom.toggleProjections.addEventListener('change', () => {
+          state.showProjections = dom.toggleProjections.checked;
+          renderAll();
+        });
+        dom.toggleVelVector.addEventListener('change', () => {
+          state.showVelVector = dom.toggleVelVector.checked;
+          renderAll();
+        });
+        dom.toggleAngleArcs.addEventListener('change', () => {
+          state.showAngleArcs = dom.toggleAngleArcs.checked;
+          renderAll();
+        });
+
+        dom.btnPlayPause.addEventListener('click', () => {
+          setPlaying(!state.isPlaying);
+        });
+
+        dom.btnResetTime.addEventListener('click', () => {
+          state.currentTime = 0;
+          renderAll();
+        });
+
+        dom.speedBtns.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.playbackSpeed = parseFloat(btn.dataset.speed);
+            dom.speedBtns.forEach((b) => {
+              if (b === btn) {
+                b.className = 'speed-btn px-2 py-1 rounded-md text-[11px] font-mono font-semibold bg-white text-slate-900 shadow-xs transition cursor-pointer';
+              } else {
+                b.className = 'speed-btn px-2 py-1 rounded-md text-[11px] font-mono font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+              }
+            });
+          });
+        });
+
+        dom.sliderCurrentTime.addEventListener('input', () => {
+          if (state.isPlaying) setPlaying(false);
+          state.currentTime = clamp(parseFloat(dom.sliderCurrentTime.value), 0, state.timeSpan);
+          renderAll();
+        });
+
+        // Unified Canvas Pointer Interactions (x(t) Scrubbing, u(t) Scrubbing)
+        dom.unifiedCanvas.addEventListener('mousedown', (e) => {
+          const rect = dom.unifiedCanvas.getBoundingClientRect();
+          const px = e.clientX - rect.left;
+          const py = e.clientY - rect.top;
+
+          if (isInsideRect(px, py, state.hitRegions.xPlot, 14)) {
+            if (state.isPlaying) setPlaying(false);
+            state.isScrubbingXPlot = true;
+            state.currentTime = pointerToXPlotTime(e.clientX);
+            renderAll();
+          } else if (isInsideRect(px, py, state.hitRegions.uPlot, 18)) {
+            if (state.isPlaying) setPlaying(false);
+            state.isScrubbingUPlot = true;
+            state.currentTime = pointerToUPlotTime(e.clientY);
+            renderAll();
+          }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+          if (state.isScrubbingXPlot) {
+            const t = pointerToXPlotTime(e.clientX);
+            state.currentTime = t;
+            state.hoverTime = t;
+            renderAll();
+            return;
+          }
+          if (state.isScrubbingUPlot) {
+            const t = pointerToUPlotTime(e.clientY);
+            state.currentTime = t;
+            state.hoverTime = t;
+            renderAll();
+          }
+        });
+
+        dom.unifiedCanvas.addEventListener('mousemove', (e) => {
+          if (state.isScrubbingXPlot || state.isScrubbingUPlot) return;
+          const rect = dom.unifiedCanvas.getBoundingClientRect();
+          const px = e.clientX - rect.left;
+          const py = e.clientY - rect.top;
+
+          if (isInsideRect(px, py, state.hitRegions.xPlot, 8)) {
+            dom.unifiedCanvas.style.cursor = 'ew-resize';
+            state.hoverTime = pointerToXPlotTime(e.clientX);
+          } else if (isInsideRect(px, py, state.hitRegions.uPlot, 14)) {
+            dom.unifiedCanvas.style.cursor = 'ns-resize';
+            state.hoverTime = pointerToUPlotTime(e.clientY);
+          } else {
+            dom.unifiedCanvas.style.cursor = 'default';
+            state.hoverTime = null;
+          }
+          renderUnifiedCanvas();
+        });
+
+        dom.unifiedCanvas.addEventListener('mouseleave', () => {
+          state.hoverTime = null;
+          renderUnifiedCanvas();
+        });
+
+        window.addEventListener('mouseup', () => {
+          state.isScrubbingXPlot = false;
+          state.isScrubbingUPlot = false;
+        });
+
+        // Touch interactions for mobile/tablet
+        dom.unifiedCanvas.addEventListener(
+          'touchstart',
+          (e) => {
+            if (e.touches.length === 0) return;
+            const touch = e.touches[0];
+            const rect = dom.unifiedCanvas.getBoundingClientRect();
+            const px = touch.clientX - rect.left;
+            const py = touch.clientY - rect.top;
+
+            if (isInsideRect(px, py, state.hitRegions.xPlot, 16)) {
+              if (state.isPlaying) setPlaying(false);
+              state.isScrubbingXPlot = true;
+              const t = pointerToXPlotTime(touch.clientX);
+              state.currentTime = t;
+              state.hoverTime = t;
+              renderAll();
+            } else if (isInsideRect(px, py, state.hitRegions.uPlot, 20)) {
+              if (state.isPlaying) setPlaying(false);
+              state.isScrubbingUPlot = true;
+              const t = pointerToUPlotTime(touch.clientY);
+              state.currentTime = t;
+              state.hoverTime = t;
+              renderAll();
+            }
+          },
+          { passive: true }
+        );
+
+        dom.unifiedCanvas.addEventListener(
+          'touchmove',
+          (e) => {
+            if (e.touches.length === 0) return;
+            const touch = e.touches[0];
+            if (state.isScrubbingXPlot) {
+              e.preventDefault();
+              const t = pointerToXPlotTime(touch.clientX);
+              state.currentTime = t;
+              state.hoverTime = t;
+              renderAll();
+            } else if (state.isScrubbingUPlot) {
+              e.preventDefault();
+              const t = pointerToUPlotTime(touch.clientY);
+              state.currentTime = t;
+              state.hoverTime = t;
+              renderAll();
+            }
+          },
+          { passive: false }
+        );
+
+        dom.unifiedCanvas.addEventListener('touchend', () => {
+          state.isScrubbingXPlot = false;
+          state.isScrubbingUPlot = false;
+          state.hoverTime = null;
+          renderAll();
+        });
+
+        // Responsive Resize
+        window.addEventListener('resize', () => {
+          renderUnifiedCanvas();
+        });
+      }
+
+      function animationLoop(timestamp) {
+        if (state.isPlaying) {
+          if (state.lastFrameTimestamp !== null) {
+            const dt = ((timestamp - state.lastFrameTimestamp) / 1000) * state.playbackSpeed;
+            state.currentTime += dt;
+            if (state.currentTime > state.timeSpan) {
+              state.currentTime %= state.timeSpan;
+            }
+            renderAll();
+          }
+          state.lastFrameTimestamp = timestamp;
+        }
+        requestAnimationFrame(animationLoop);
+      }
+
+      window.onload = function () {
+        initializeEventListeners();
+        syncPhasePresetHighlight();
+        renderAll();
+        requestAnimationFrame(animationLoop);
+      };
+    })();
+  </script>
+</body>
+</html>
